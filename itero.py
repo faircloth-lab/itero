@@ -454,7 +454,6 @@ def initial_assembly(work):
     spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
     sys.stdout.write('.')
     sys.stdout.flush()
-    return sample_dir_iter_locus
 
 
 def main():
@@ -523,7 +522,7 @@ def main():
                     "-n",
                     str(args.cores),
                     "python",
-                    "/nfs/data1/working/bfaircloth-lagniappe/itero/parallelize.py",
+                    "/nfs/data1/working/bfaircloth-lagniappe/itero/mpi_parallelize.py",
                     str(iteration),
                     sample,
                     sample_dir_iter,

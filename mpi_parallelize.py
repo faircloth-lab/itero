@@ -45,7 +45,7 @@ import os
 import sys
 import numpy
 
-from itero import samtools_split_bam, bedtools_to_fastq, spades_paired_end_assembly
+from itero import samtools_split_bam, bedtools_to_fastq, spades_paired_end_assembly, initial_assembly
 from mpi4py import MPI
 
 
@@ -60,7 +60,7 @@ def split(container, count):
 
 COMM = MPI.COMM_WORLD
 if COMM.rank == 0:
-    # take arguments as coming in as arguments - this script is called from the
+    # take parameters coming in as arguments - this script is called from the
     # main loop because it makes things run much cleaner (also gives us some
     # options relative to running both mutltprocessing and mpi)
     iteration = sys.argv[1]
@@ -88,13 +88,4 @@ jobs = COMM.scatter(jobs, root=0)
 # pickled to be exchanged over MPI.
 
 for job in jobs:
-    # Do something meaningful here...
-    iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean = job
-    sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
-    os.makedirs(sample_dir_iter_locus)
-    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean)
-    fastqs = bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
-    spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
-    # give some visual indication of progress
-    sys.stdout.write('.')
-    sys.stdout.flush()
+    initial_assembly(job)
