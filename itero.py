@@ -15,6 +15,7 @@ Created on 17 July 2017 13:35 CDT (-0500)
 import os
 import sys
 import time
+import glob
 import shutil
 import argparse
 import subprocess
@@ -55,6 +56,12 @@ def get_args():
         help="""The number of compute cores/threads to use"""
     )
     parser.add_argument(
+        "--clean",
+        action="store_true",
+        default=False,
+        help="""Cleanup all intermediate Trinity files""",
+    )
+    parser.add_argument(
         "--verbosity",
         type=str,
         choices=["INFO", "WARN", "CRITICAL"],
@@ -67,6 +74,12 @@ def get_args():
         type=is_dir,
         default=None,
         help="""The path to a directory to hold logs."""
+    )
+    parser.add_argument(
+        "--mpi",
+        action="store_true",
+        default=False,
+        help="""Perform assemblies using MPI""",
     )
     # one of these is required.  The other will be set to None.
     input = parser.add_mutually_exclusive_group(required=True)
@@ -248,7 +261,7 @@ def samtools_get_locus_names_from_bam(log, bam, iteration):
     return locus_names
 
 
-def samtools_split_bam(sample, sample_dir, bam, locus):
+def samtools_split_bam(sample, sample_dir, bam, locus, clean):
     bam_out_fname = os.path.join(sample_dir, '{}.bam'.format(locus))
     cmd0 = [
         "/home/bcf/anaconda/envs/circulator/bin/samtools",
@@ -303,6 +316,9 @@ def samtools_split_bam(sample, sample_dir, bam, locus):
     ]
     proc3 = subprocess.Popen(cmd3)
     stdout = proc3.communicate()
+    if clean:
+        os.remove(bam_out_fname)
+        os.remove(bam_out_fname_paired)
     return bam_out_fname_paired_sorted, bam_out_fname_singleton
 
 
@@ -311,7 +327,7 @@ def get_seed_names(seeds):
         return [i.lstrip(">").rstrip() for i in infile if i.startswith(">")]
 
 
-def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus):
+def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus, clean):
     fastq_out_fname_r1 = os.path.join(sample_dir, '{}.read1.fastq'.format(locus))
     fastq_out_fname_r2 = os.path.join(sample_dir, '{}.read2.fastq'.format(locus))
     fastq_out_fname_s = os.path.join(sample_dir, '{}.singleton.fastq'.format(locus))
@@ -326,7 +342,9 @@ def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus):
         fastq_out_fname_r2
     ]
     proc0 = subprocess.Popen(cmd0)
-    stdout = proc0.communicate()
+    # stderr may contain entries when chimeric reads are present.  these are not
+    # included in the output.
+    stdout, stderr = proc0.communicate()
     cmd1 = [
         "/home/bcf/bin/bedtools",
         "bamtofastq",
@@ -342,14 +360,20 @@ def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus):
         2: fastq_out_fname_r2,
         's': fastq_out_fname_s
     }
+    if clean:
+        os.remove(bam_paired)
+        os.remove(bam_singleton)
     return fastqs
 
 
-def spades_paired_end_assembly(sample, sample_dir, fastqs, locus):
+def spades_paired_end_assembly(iteration, sample, sample_dir, fastqs, locus, clean):
     assembly_out_fname = os.path.join(sample_dir, '{}-assembly'.format(locus))
-    # go ahead and assemble without error correction, for speed
+    # go ahead and assemble without error correction, for speed.
+    # explcitly set threads = 1
     cmd1 = [
         "/home/bcf/anaconda/envs/circulator/bin/spades.py",
+        "-t",
+        "1",
         "-1",
         fastqs[1],
         "-2",
@@ -360,14 +384,32 @@ def spades_paired_end_assembly(sample, sample_dir, fastqs, locus):
         "33",
         "--cov-cutoff",
         "5",
-        "--only-assembler",
         "-o",
         assembly_out_fname
     ]
-    spades_out_fname = os.path.join(sample_dir, '{}.spades.log'.format(locus))
-    with open(spades_out_fname, 'w') as spades_out:
-        proc = subprocess.Popen(cmd1, stdout=spades_out, stderr=subprocess.STDOUT)
-        proc.communicate()
+    # turn off error correction for non-final rounds, turn on error-correction
+    # for final round and also use --careful assembly option (both of these are
+    # slower)
+    if not iteration == 'final':
+        cmd1.append("--only-assembler")
+    if iteration == 'final':
+        cmd1.append("--careful")
+    # spades creates its own log file in the assembly dir - redirect to /dev/null
+    fnull_file = open(os.devnull, 'w')
+    proc = subprocess.Popen(cmd1, stdout=fnull_file, stderr=subprocess.STDOUT)
+    stdout, stderr = proc.communicate()
+    if clean:
+        to_delete = glob.glob(os.path.join(assembly_out_fname, "*"))
+        for element in ['contigs.fasta', 'scaffolds.fasta', 'spades.log']:
+            try:
+                to_delete.remove(os.path.join(assembly_out_fname, element))
+            except:
+                pass
+        for d in to_delete:
+            if os.path.isdir(d):
+                shutil.rmtree(d)
+            else:
+                os.remove(d)
     return assembly_out_fname
 
 
@@ -375,6 +417,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, iteration=0):
     assemblies = []
     assemblies_stats = []
     all_fasta_out_fname = os.path.join(sample_dir_iter, 'iter-{}.all-fasta.fasta'.format(iteration))
+    all_fasta_stats_fname = os.path.join(sample_dir_iter, 'iter-{}.all-fasta.stats.csv'.format(iteration))
     print("")
     for locus in locus_names:
         try:
@@ -390,7 +433,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, iteration=0):
             else:
                 log.warn("Dropped locus {} for having multiple contigs".format(locus))
         except IOError:
-            log.warn("Dropped locus {} for having no assembled contigs".format(locus))
+            log.warn("Dropped locus {} for having no assembled contigs (or coverage < 5)".format(locus))
     with open(all_fasta_out_fname, 'w') as outfile:
         SeqIO.write(assemblies, outfile, 'fasta')
     log.info("Mean sequence length {}, min {}, max {}".format(
@@ -398,18 +441,20 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, iteration=0):
         numpy.min(assemblies_stats),
         numpy.max(assemblies_stats)
     ))
+    numpy.savetxt(all_fasta_stats_fname, assemblies_stats, delimiter=",", fmt='%s', header='iter-{}'.format(iteration))
     return all_fasta_out_fname
 
 
 def initial_assembly(work):
-    sample, sample_dir_iter, sorted_reduced_bam, locus = work
+    iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean = work
     sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
     os.makedirs(sample_dir_iter_locus)
-    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus)
-    fastqs = bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus)
-    spades_paired_end_assembly(sample, sample_dir_iter_locus, fastqs, locus)
+    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean)
+    fastqs = bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
+    spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
     sys.stdout.write('.')
     sys.stdout.flush()
+    return sample_dir_iter_locus
 
 
 def main():
@@ -439,7 +484,7 @@ def main():
         os.makedirs(sample_dir)
         # determine how many files we're dealing with
         fastq = get_input_files(dir, args.subfolder, log)
-        for iteration in (0, 1, 2, 3, 4, 5, 6):
+        for iteration in (0, 1, 2, 3, 4, 5, 6, 'final'):
             text = " Iteration {} ".format(iteration)
             log.info(text.center(45, "-"))
             #start_dir = os.getcwd()
@@ -470,13 +515,32 @@ def main():
             # get list of loci in sorted bam
             locus_names = samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
             log.info("Splitting BAM and assembling")
-            work = [(sample, sample_dir_iter, sorted_reduced_bam, locus_name) for locus_name in locus_names]
-            if args.cores > 1:
-                assert args.cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
-                pool = multiprocessing.Pool(args.cores)
-                pool.map(initial_assembly, work)
+            if args.mpi:
+                locus_file = "iter-{}.loci.csv".format(iteration)
+                numpy.savetxt(locus_file, locus_names, delimiter=",", fmt='%s')
+                cmd = [
+                    "mpirun",
+                    "-n",
+                    str(args.cores),
+                    "python",
+                    "/nfs/data1/working/bfaircloth-lagniappe/itero/parallelize.py",
+                    str(iteration),
+                    sample,
+                    sample_dir_iter,
+                    sorted_reduced_bam,
+                    str(args.clean),
+                    locus_file
+                ]
+                proc = subprocess.Popen(cmd)
+                stdout, stderr = proc.communicate()
             else:
-                map(initial_assembly, work)
+                work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean) for locus_name in locus_names]
+                if args.cores > 1:
+                    assert args.cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
+                    pool = multiprocessing.Pool(args.cores)
+                    pool.map(initial_assembly, work)
+                else:
+                    map(initial_assembly, work)
             # after assembling all loci, get them into a single file
             new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, iteration=iteration)
         # enter assembly polishing
@@ -491,4 +555,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
