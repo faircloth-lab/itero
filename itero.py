@@ -194,7 +194,8 @@ def samtools_reduce(log, sample, sample_dir, bam, iteration=0):
         "view",
         "-F",
         "4",
-        "-b",
+        "-bq",
+        "1",
         bam,
         "-o",
         bam_out_fname
@@ -249,7 +250,7 @@ def samtools_get_locus_names_from_bam(log, bam, iteration):
 
 def samtools_split_bam(sample, sample_dir, bam, locus):
     bam_out_fname = os.path.join(sample_dir, '{}.bam'.format(locus))
-    cmd1 = [
+    cmd0 = [
         "/home/bcf/anaconda/envs/circulator/bin/samtools",
         "view",
         "-b",
@@ -258,11 +259,51 @@ def samtools_split_bam(sample, sample_dir, bam, locus):
         "-o",
         bam_out_fname
     ]
+    proc0 = subprocess.Popen(cmd0)
+    stdout = proc0.communicate()
+    # split the reduced files into properly paired and singleton reads
+    bam_out_fname_paired = os.path.join(sample_dir, '{}.paired.bam'.format(locus))
+    # -f 2 -F 2048 gets properly paired, non-supplementary alignments
+    cmd2 = [
+        "/home/bcf/anaconda/envs/circulator/bin/samtools",
+        "view",
+        "-f",
+        "2",
+        "-F",
+        "2048",
+        "-b",
+        bam_out_fname,
+        "-o",
+        bam_out_fname_paired
+    ]
+    proc2 = subprocess.Popen(cmd2)
+    stdout = proc2.communicate()
+    # sort the paired bam
+    bam_out_fname_paired_sorted = os.path.join(sample_dir, '{}.paired.sorted.bam'.format(locus))
+    cmd1 = [
+        "/home/bcf/anaconda/envs/circulator/bin/samtools",
+        "sort",
+        "-n",
+        bam_out_fname_paired,
+        "-o",
+        bam_out_fname_paired_sorted
+    ]
     proc1 = subprocess.Popen(cmd1)
     stdout = proc1.communicate()
-    sys.stdout.write('.')
-    sys.stdout.flush()
-    return bam_out_fname
+    bam_out_fname_singleton = os.path.join(sample_dir, '{}.singleton.bam'.format(locus))
+    cmd3 = [
+        "/home/bcf/anaconda/envs/circulator/bin/samtools",
+        "view",
+        "-f",
+        "8",
+        "-b",
+        bam_out_fname,
+        "-o",
+        bam_out_fname_singleton
+    ]
+    proc3 = subprocess.Popen(cmd3)
+    stdout = proc3.communicate()
+    return bam_out_fname_paired_sorted, bam_out_fname_singleton
 
 
 def get_seed_names(seeds):
@@ -270,28 +311,51 @@ def get_seed_names(seeds):
         return [i.lstrip(">").rstrip() for i in infile if i.startswith(">")]
 
 
-def bedtools_to_fastq(sample, sample_dir, bam, locus):
-    fastq_out_fname = os.path.join(sample_dir, '{}.fastq'.format(locus))
+def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus):
+    fastq_out_fname_r1 = os.path.join(sample_dir, '{}.read1.fastq'.format(locus))
+    fastq_out_fname_r2 = os.path.join(sample_dir, '{}.read2.fastq'.format(locus))
+    fastq_out_fname_s = os.path.join(sample_dir, '{}.singleton.fastq'.format(locus))
+    cmd0 = [
+        "/home/bcf/bin/bedtools",
+        "bamtofastq",
+        "-i",
+        bam_paired,
+        "-fq",
+        fastq_out_fname_r1,
+        "-fq2",
+        fastq_out_fname_r2
+    ]
+    proc0 = subprocess.Popen(cmd0)
+    stdout = proc0.communicate()
     cmd1 = [
         "/home/bcf/bin/bedtools",
         "bamtofastq",
         "-i",
-        bam,
+        bam_singleton,
         "-fq",
-        fastq_out_fname
+        fastq_out_fname_s
     ]
     proc1 = subprocess.Popen(cmd1)
     stdout = proc1.communicate()
-    return fastq_out_fname
+    fastqs = {
+        1: fastq_out_fname_r1,
+        2: fastq_out_fname_r2,
+        's': fastq_out_fname_s
+    }
+    return fastqs
 
 
-def spades_single_end_assembly(sample, sample_dir, fastq, locus):
+def spades_paired_end_assembly(sample, sample_dir, fastqs, locus):
     assembly_out_fname = os.path.join(sample_dir, '{}-assembly'.format(locus))
     # go ahead and assemble without error correction, for speed
     cmd1 = [
         "/home/bcf/anaconda/envs/circulator/bin/spades.py",
+        "-1",
+        fastqs[1],
+        "-2",
+        fastqs[2],
         "-s",
-        fastq,
+        fastqs['s'],
         "-k",
         "33",
         "--cov-cutoff",
@@ -341,10 +405,9 @@ def initial_assembly(work):
     sample, sample_dir_iter, sorted_reduced_bam, locus = work
     sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
     os.makedirs(sample_dir_iter_locus)
-    split_bam = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus)
-    split_fastq = bedtools_to_fastq(sample, sample_dir_iter_locus, split_bam, locus)
-    os.remove(split_bam)
-    spades_single_end_assembly(sample, sample_dir_iter_locus, split_fastq, locus)
+    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus)
+    fastqs = bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus)
+    spades_paired_end_assembly(sample, sample_dir_iter_locus, fastqs, locus)
     sys.stdout.write('.')
     sys.stdout.flush()
 
