@@ -470,6 +470,7 @@ def initial_assembly(work):
 
 
 def main():
+    start_time = time.time()
     # get args and options
     args = get_args()
     # setup logging
@@ -486,7 +487,6 @@ def main():
     log.info("Getting input filenames and creating output directories")
     reference, individuals = get_input_data(log, conf, args.output)
     for individual in individuals:
-        start_time = time.time()
         sample, dir = individual
         # pretty print taxon status
         text = " Processing {} ".format(sample)
