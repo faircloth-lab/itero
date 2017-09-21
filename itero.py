@@ -443,9 +443,13 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                 log.warn("Dropped locus {} for having multiple contigs".format(locus))
         except IOError:
             log.warn("Dropped locus {} for having no assembled contigs (or coverage < 5)".format(locus))
+    if len(assemblies) == 0:
+        log.critical("Zero valid contigs were assembled.  Quitting.")
+        sys.exit()
     with open(all_fasta_out_fname, 'w') as outfile:
         SeqIO.write(assemblies, outfile, 'fasta')
-    log.info("Mean sequence length {}, min {}, max {}".format(
+    log.info("{} sequences. Mean sequence length {}, min {}, max {}".format(
+        len(assemblies_stats),
         numpy.mean(assemblies_stats),
         numpy.min(assemblies_stats),
         numpy.max(assemblies_stats)
