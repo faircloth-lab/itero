@@ -80,6 +80,12 @@ def get_args():
         help="""Cleanup all intermediate files""",
     )
     parser.add_argument(
+        "--only-single-locus",
+        action="store_true",
+        default=False,
+        help="""Assemble only to a single contig""",
+    )
+    parser.add_argument(
         "--allow-multiple-contigs",
         action="store_true",
         default=False,
@@ -267,19 +273,22 @@ def samtools_get_locus_names_from_bam(log, bam, iteration):
     return locus_names
 
 
-def samtools_split_bam(sample, sample_dir, bam, locus, clean):
+def samtools_split_bam(sample, sample_dir, bam, locus, clean, only_single_locus):
     bam_out_fname = os.path.join(sample_dir, '{}.bam'.format(locus))
-    cmd0 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "view",
-        "-b",
-        bam,
-        locus,
-        "-o",
-        bam_out_fname
-    ]
-    proc0 = subprocess.Popen(cmd0)
-    stdout = proc0.communicate()
+    if only_single_locus:
+        bam_out_fname = bam
+    else:
+        cmd0 = [
+            "/home/bcf/anaconda/envs/circulator/bin/samtools",
+            "view",
+            "-b",
+            bam,
+            locus,
+            "-o",
+            bam_out_fname
+        ]
+        proc0 = subprocess.Popen(cmd0)
+        stdout = proc0.communicate()
     # split the reduced files into properly paired and singleton reads
     bam_out_fname_paired = os.path.join(sample_dir, '{}.paired.bam'.format(locus))
     # -f 2 -F 2048 gets properly paired, non-supplementary alignments
@@ -459,10 +468,10 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
 
 
 def initial_assembly(work):
-    iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean = work
+    iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean, only_single_locus = work
     sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
     os.makedirs(sample_dir_iter_locus)
-    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean)
+    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean, only_single_locus)
     fastqs = bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
     spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
     sys.stdout.write('.')
@@ -524,8 +533,11 @@ def main():
             samtools_index(log, sample, sample_dir_iter, sorted_reduced_bam, iteration=iteration)
             # remove the un-sorted BAM
             os.remove(reduced_bam)
-            # get list of loci in sorted bam
-            locus_names = samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
+            if args.only_single_locus:
+                locus_names = ['locus-1']
+            else:
+                # get list of loci in sorted bam
+                locus_names = samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
             log.info("Splitting BAM and assembling")
             if args.use_mpi:
                 locus_file = "iter-{}.loci.csv".format(iteration)
@@ -546,11 +558,13 @@ def main():
                 proc = subprocess.Popen(cmd)
                 stdout, stderr = proc.communicate()
             else:
-                work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean) for locus_name in locus_names]
-                if args.local_cores > 1:
+                work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
+                if not args.only_single_locus and args.local_cores > 1:
                     assert args.local_cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
                     pool = multiprocessing.Pool(args.local_cores)
                     pool.map(initial_assembly, work)
+                if args.only_single_locus:
+                    map(initial_assembly, work)
                 else:
                     map(initial_assembly, work)
             # after assembling all loci, get them into a single file
