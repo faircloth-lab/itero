@@ -37,6 +37,13 @@ def get_args():
         description="""Iteratively assemble loci from raw reads and a seed file"""
     )
     parser.add_argument(
+        "--config",
+        type=is_file,
+        action=FullPaths,
+        default=None,
+        help="""A configuration file containing reads to assemble"""
+    )
+    parser.add_argument(
         "--subfolder",
         type=str,
         default='',
@@ -45,15 +52,26 @@ def get_args():
     parser.add_argument(
         "--output",
         required=True,
-        action=FullPaths,
-        #action=CreateDir,
+        action=CreateDir,
         help="""The directory in which to store the output"""
     )
     parser.add_argument(
-        "--cores",
+        "--local-cores",
         type=int,
         default=1,
-        help="""The number of compute cores/threads to use"""
+        help="""The number of cores to use on the main node"""
+    )
+    parser.add_argument(
+        "--use-mpi",
+        action="store_true",
+        default=False,
+        help="""Perform assemblies using MPI.  Number of cores passed with mpirun.""",
+    )
+    parser.add_argument(
+        "--mpi-cores",
+        type=int,
+        default=None,
+        help="""The number of cores to use for MPI"""
     )
     parser.add_argument(
         "--clean",
@@ -81,29 +99,11 @@ def get_args():
         default=None,
         help="""The path to a directory to hold logs."""
     )
-    parser.add_argument(
-        "--mpi",
-        action="store_true",
-        default=False,
-        help="""Perform assemblies using MPI""",
-    )
-    # one of these is required.  The other will be set to None.
-    input = parser.add_mutually_exclusive_group(required=True)
-    input.add_argument(
-        "--config",
-        type=is_file,
-        action=FullPaths,
-        default=None,
-        help="""A configuration file containing reads to assemble"""
-    )
-    input.add_argument(
-        "--dir",
-        type=is_dir,
-        action=FullPaths,
-        default=None,
-        help="""A directory of reads to assemble""",
-    )
-    return parser.parse_args()
+    p = parser.parse_args()
+    if p.use_mpi and p.mpi_cores is None:
+        parser.error('You specified --use-mpi which means you must also specify --mpi-cores <int>')
+    else:
+        return p
 
 
 def get_input_data(log, conf, output):
@@ -510,7 +510,7 @@ def main():
             # index the seed file
             bwa_index_seeds(seeds, log)
             # map initial reads to seeds
-            bam = bwa_mem_pe_align(log, sample, sample_dir_iter, seeds, args.cores, fastq.r1, fastq.r2, iteration)
+            bam = bwa_mem_pe_align(log, sample, sample_dir_iter, seeds, args.local_cores, fastq.r1, fastq.r2, iteration)
             # reduce bam to mapping reads
             reduced_bam = samtools_reduce(log, sample, sample_dir_iter, bam, iteration=iteration)
             # remove the un-reduced BAM
@@ -523,13 +523,13 @@ def main():
             # get list of loci in sorted bam
             locus_names = samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
             log.info("Splitting BAM and assembling")
-            if args.mpi:
+            if args.use_mpi:
                 locus_file = "iter-{}.loci.csv".format(iteration)
                 numpy.savetxt(locus_file, locus_names, delimiter=",", fmt='%s')
                 cmd = [
                     "mpirun",
                     "-n",
-                    str(args.cores),
+                    str(args.mpi_cores),
                     "python",
                     "/nfs/data1/working/bfaircloth-lagniappe/itero/mpi_parallelize.py",
                     str(iteration),
@@ -543,9 +543,9 @@ def main():
                 stdout, stderr = proc.communicate()
             else:
                 work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean) for locus_name in locus_names]
-                if args.cores > 1:
-                    assert args.cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
-                    pool = multiprocessing.Pool(args.cores)
+                if args.local_cores > 1:
+                    assert args.local_cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
+                    pool = multiprocessing.Pool(args.local_cores)
                     pool.map(initial_assembly, work)
                 else:
                     map(initial_assembly, work)
