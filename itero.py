@@ -59,7 +59,13 @@ def get_args():
         "--clean",
         action="store_true",
         default=False,
-        help="""Cleanup all intermediate Trinity files""",
+        help="""Cleanup all intermediate files""",
+    )
+    parser.add_argument(
+        "--allow-multiple-contigs",
+        action="store_true",
+        default=False,
+        help="""Allow assembly stages to produce multiple contigs""",
     )
     parser.add_argument(
         "--verbosity",
@@ -413,7 +419,7 @@ def spades_paired_end_assembly(iteration, sample, sample_dir, fastqs, locus, cle
     return assembly_out_fname
 
 
-def get_fasta(log, sample, sample_dir_iter, locus_names, iteration=0):
+def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, iteration=0):
     assemblies = []
     assemblies_stats = []
     all_fasta_out_fname = os.path.join(sample_dir_iter, 'iter-{}.all-fasta.fasta'.format(iteration))
@@ -423,7 +429,10 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, iteration=0):
         try:
             assembly_fasta_fname = os.path.join(sample_dir_iter, "loci", locus, "{}-assembly".format(locus), "contigs.fasta")
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
-            if len(sequence) == 1:
+            if multiple_hits:
+                assemblies.extend(sequence)
+                assemblies_stats.extend([len(seq) for seq in sequence])
+            elif not multiple_hits and len(sequence) == 1:
                 seq = sequence[0]
                 seq.id = seq.id.replace("NODE", locus.split("_")[0])
                 seq.description = ""
@@ -541,8 +550,9 @@ def main():
                 else:
                     map(initial_assembly, work)
             # after assembling all loci, get them into a single file
-            new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, iteration=iteration)
-        # enter assembly polishing
+            new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, args.allow_multiple_contigs, iteration=iteration)
+        # assemblies basically get polished by spades.  maybe skip assembly
+        # polishing for now
 
     end_time = time.time()
     time_delta_sec = round(end_time - start_time, 1)

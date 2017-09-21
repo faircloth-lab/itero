@@ -71,10 +71,14 @@ if COMM.rank == 0:
         clean = True
     else:
         clean = False
+    if sys.argv[6] == 'True':
+        multiple_hits = True
+    else:
+        multiple_hits = False
     locus_file = os.path.join(sample_dir_iter, sys.argv[6])
     locus_names = numpy.genfromtxt(locus_file, delimiter=',', dtype=str)
     # generate a work tuple as in the multiprocessing version of the code
-    work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, clean) for locus_name in locus_names]
+    work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, clean, multiple_hits) for locus_name in locus_names]
     jobs = split(work, COMM.size)
 else:
     jobs = None
