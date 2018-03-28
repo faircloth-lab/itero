@@ -17,6 +17,7 @@ import sys
 import time
 import glob
 import shutil
+import tarfile
 import argparse
 import subprocess
 import ConfigParser
@@ -56,6 +57,12 @@ def get_args():
         help="""The directory in which to store the output"""
     )
     parser.add_argument(
+        "--iterations",
+        type=int,
+        default=5,
+        help="""The number of iterations to run for each locus"""
+    )
+    parser.add_argument(
         "--local-cores",
         type=int,
         default=1,
@@ -90,6 +97,12 @@ def get_args():
         action="store_true",
         default=False,
         help="""Allow assembly stages to produce multiple contigs""",
+    )
+    parser.add_argument(
+        "--do-not-zip",
+        action="store_true",
+        default=False,
+        help="""Do not zip the iteration files, which is the default behavior.""",
     )
     parser.add_argument(
         "--verbosity",
@@ -356,7 +369,7 @@ def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus, clea
         "-fq2",
         fastq_out_fname_r2
     ]
-    proc0 = subprocess.Popen(cmd0)
+    proc0 = subprocess.Popen(cmd0, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # stderr may contain entries when chimeric reads are present.  these are not
     # included in the output.
     stdout, stderr = proc0.communicate()
@@ -368,8 +381,8 @@ def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus, clea
         "-fq",
         fastq_out_fname_s
     ]
-    proc1 = subprocess.Popen(cmd1)
-    stdout = proc1.communicate()
+    proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc1.communicate()
     fastqs = {
         1: fastq_out_fname_r1,
         2: fastq_out_fname_r2,
@@ -439,9 +452,10 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
             assembly_fasta_fname = os.path.join(sample_dir_iter, "loci", locus, "{}-assembly".format(locus), "contigs.fasta")
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
             if multiple_hits:
-                assemblies.extend(sequence)
-                assemblies_stats.extend([len(seq) for seq in sequence])
-            elif not multiple_hits and len(sequence) == 1:
+                # keep only contigs > 100 bp
+                assemblies.extend([seq for seq in sequence if len(seq) >= 100])
+                assemblies_stats.extend([len(seq) for seq in assemblies])
+            elif not multiple_hits and len(sequence) == 1 and len(sequence[0]) >= 100:
                 seq = sequence[0]
                 seq.id = seq.id.replace("NODE", locus.split("_")[0])
                 seq.description = ""
@@ -452,6 +466,8 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                 log.warn("Dropped locus {} for having multiple contigs".format(locus))
         except IOError:
             log.warn("Dropped locus {} for having no assembled contigs (or coverage < 5)".format(locus))
+        except AttributeError:
+            pdb.set_trace()
     if len(assemblies) == 0:
         log.critical("Zero valid contigs were assembled.  Quitting.")
         sys.exit()
@@ -467,6 +483,36 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
     return all_fasta_out_fname
 
 
+def get_deltas(log, sample, sample_dir_iter, iterations, iteration=0):
+    # current round of assembly
+    current_fasta_stats_fname = os.path.join(sample_dir_iter, 'iter-{}.all-fasta.stats.csv'.format(iteration))
+    current = numpy.genfromtxt(current_fasta_stats_fname, delimiter=",", skip_header=1)
+    basename, directory = os.path.split(sample_dir_iter)
+    if iteration == 'final':
+        # previous round of assembly
+        prev_iter = iterations[-2]
+    else:
+        # previous round of assembly
+        prev_iter = int(directory.split('-')[1]) - 1
+    previous_sample_dir_iter = os.path.join(basename, "iter-{}".format(prev_iter))
+    previous_fasta_stats_fname = os.path.join(previous_sample_dir_iter, 'iter-{}.all-fasta.stats.csv'.format(prev_iter))
+    previous = numpy.genfromtxt(previous_fasta_stats_fname, delimiter=",", skip_header=1)
+    difference = ((numpy.mean(current) - numpy.mean(previous)) / numpy.mean(current)) * 100
+    log.info("Mean assembly length improved by {0:.0f}%".format(difference))
+    return difference
+
+
+def get_previous_sample_dir_iter(log, sample_dir_iter, iterations, iteration):
+    basename, directory = os.path.split(sample_dir_iter)
+    if iteration == 'final':
+        # previous round of assembly
+        prev_iter = iterations[-2]
+    else:
+        # previous round of assembly
+        prev_iter = int(directory.split('-')[1]) - 1
+    return os.path.join(basename, "iter-{}".format(prev_iter))
+
+
 def initial_assembly(work):
     iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean, only_single_locus = work
     sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
@@ -476,6 +522,20 @@ def initial_assembly(work):
     spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
     sys.stdout.write('.')
     sys.stdout.flush()
+
+
+# this works ok, except we need to only be zipping the individual locus files.
+def zip_assembly_dir(log, sample_dir_iter, clean, iterations, iteration):
+    log.info("Zipping the locus directory for iter-{}".format(iteration))
+    if not clean:
+        log.warn("You are not using --clean.  Zipping may be slow.")
+    prev_sample_locus_iter = os.path.join(get_previous_sample_dir_iter(log, sample_dir_iter, iterations, iteration), "loci")
+    #pdb.set_trace()
+    output_tarfile = "{}.tar.gz".format(prev_sample_locus_iter)
+    with tarfile.open(output_tarfile, "w:gz") as tar:
+        tar.add(prev_sample_locus_iter, arcname=os.path.basename(prev_sample_locus_iter))
+    # remove unzipped directory
+    shutil.rmtree(prev_sample_locus_iter)
 
 
 def main():
@@ -505,7 +565,9 @@ def main():
         os.makedirs(sample_dir)
         # determine how many files we're dealing with
         fastq = get_input_files(dir, args.subfolder, log)
-        for iteration in (0, 1, 2, 3, 4, 5, 6, 'final'):
+        #pdb.set_trace()
+        iterations = list(xrange(args.iterations)) + ['final']
+        for iteration in iterations:
             text = " Iteration {} ".format(iteration)
             log.info(text.center(45, "-"))
             #start_dir = os.getcwd()
@@ -520,7 +582,11 @@ def main():
             elif iteration >= 1:
                 shutil.copy(new_seeds, os.getcwd())
                 seeds = os.path.join(os.getcwd(), os.path.basename(new_seeds))
-            # index the seed file
+            # if we are finished with it, zip the previous iteration
+            if not args.do_not_zip and iteration >= 1:
+                # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
+                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, iterations, iteration-1)
+            #index the seed file
             bwa_index_seeds(seeds, log)
             # map initial reads to seeds
             bam = bwa_mem_pe_align(log, sample, sample_dir_iter, seeds, args.local_cores, fastq.r1, fastq.r2, iteration)
@@ -563,12 +629,15 @@ def main():
                     assert args.local_cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
                     pool = multiprocessing.Pool(args.local_cores)
                     pool.map(initial_assembly, work)
-                if args.only_single_locus:
+                elif args.only_single_locus:
                     map(initial_assembly, work)
                 else:
                     map(initial_assembly, work)
             # after assembling all loci, get them into a single file
             new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, args.allow_multiple_contigs, iteration=iteration)
+            # after assembling all loci, report on deltas of the assembly length
+            if iteration is not 0:
+                assembly_delta = get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
         # assemblies basically get polished by spades.  maybe skip assembly
         # polishing for now
 
