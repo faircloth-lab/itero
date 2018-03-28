@@ -502,7 +502,7 @@ def get_deltas(log, sample, sample_dir_iter, iterations, iteration=0):
     return difference
 
 
-def get_previous_sample_dir_iter(log, sample_dir_iter, iterations, iteration):
+def get_previous_iter(log, sample_dir_iter, iterations, iteration):
     basename, directory = os.path.split(sample_dir_iter)
     if iteration == 'final':
         # previous round of assembly
@@ -510,6 +510,11 @@ def get_previous_sample_dir_iter(log, sample_dir_iter, iterations, iteration):
     else:
         # previous round of assembly
         prev_iter = int(directory.split('-')[1]) - 1
+    return prev_iter
+
+
+def get_previous_sample_dir_iter(log, sample_dir_iter, prev_iter):
+    basename, directory = os.path.split(sample_dir_iter)
     return os.path.join(basename, "iter-{}".format(prev_iter))
 
 
@@ -525,11 +530,11 @@ def initial_assembly(work):
 
 
 # this works ok, except we need to only be zipping the individual locus files.
-def zip_assembly_dir(log, sample_dir_iter, clean, iterations, iteration):
-    log.info("Zipping the locus directory for iter-{}".format(iteration))
+def zip_assembly_dir(log, sample_dir_iter, clean, prev_iter):
+    log.info("Zipping the locus directory for iter-{}".format(prev_iter))
     if not clean:
         log.warn("You are not using --clean.  Zipping may be slow.")
-    prev_sample_locus_iter = os.path.join(get_previous_sample_dir_iter(log, sample_dir_iter, iterations, iteration), "loci")
+    prev_sample_locus_iter = os.path.join(get_previous_sample_dir_iter(log, sample_dir_iter, prev_iter), "loci")
     #pdb.set_trace()
     output_tarfile = "{}.tar.gz".format(prev_sample_locus_iter)
     with tarfile.open(output_tarfile, "w:gz") as tar:
@@ -585,7 +590,8 @@ def main():
             # if we are finished with it, zip the previous iteration
             if not args.do_not_zip and iteration >= 1:
                 # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
-                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, iterations, iteration-1)
+                prev_iter = get_previous_iter(log, sample_dir_iter, iterations, iteration)
+                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, prev_iter)
             #index the seed file
             bwa_index_seeds(seeds, log)
             # map initial reads to seeds
@@ -638,6 +644,9 @@ def main():
             # after assembling all loci, report on deltas of the assembly length
             if iteration is not 0:
                 assembly_delta = get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
+            if iteration is 'final':
+                # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
+                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, 'final')
         # assemblies basically get polished by spades.  maybe skip assembly
         # polishing for now
 
