@@ -575,7 +575,18 @@ def main():
         for iteration in iterations:
             text = " Iteration {} ".format(iteration)
             log.info(text.center(45, "-"))
-            #start_dir = os.getcwd()
+            # If iteration == 'final', set some things up differently
+            ## First, we'll allow multiple contigs during all but the final rounds of contig assembly.
+            ## This is because we could be assembling different parts of a locus that simply have not
+            ## merged in the middle yet (but will).  We'll turn option to remove multiple contigs
+            ## back on for final round
+            if iteration == 'final':
+                if args.allow_multiple_contigs is True:
+                    allow_multiple_contigs = True
+                else:
+                    allow_multiple_contigs = False
+            else:
+                allow_multiple_contigs = True
             sample_dir_iter = os.path.join(sample_dir, "iter-{}".format(iteration))
             os.makedirs(sample_dir_iter)
             # change to sample_dir_iter
@@ -640,7 +651,7 @@ def main():
                 else:
                     map(initial_assembly, work)
             # after assembling all loci, get them into a single file
-            new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, args.allow_multiple_contigs, iteration=iteration)
+            new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, allow_multiple_contigs, iteration=iteration)
             # after assembling all loci, report on deltas of the assembly length
             if iteration is not 0:
                 assembly_delta = get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
