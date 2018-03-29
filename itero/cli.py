@@ -132,25 +132,6 @@ def get_args():
 
 
 def get_input_data(log, args, conf):
-    '''
-    # get reference sequence
-    reference = conf.items('reference')
-    # ensure there is 1 reference and it is a file
-    assert len(reference) == 1, "There is more than one reference sequence listed."
-    reference = reference[0][0]
-    try:
-        assert os.path.isfile(reference)
-    except:
-        raise IOError("{} is not a file".format(reference))
-    # check reference to ensure that bwa has indexed
-    for suffix in ['amb', 'ann', 'bwt', 'pac',  'sa']:
-        bwa_file = "{}.{}".format(reference, suffix)
-        try:
-            assert os.path.isfile(bwa_file)
-        except:
-            log.info("Need to create BWA index file for reference")
-            bwa_create_index_files(log, reference)
-    '''
     individuals = conf.items('individuals')
     updated_individuals = []
     for sample in individuals:
@@ -295,7 +276,6 @@ def main():
     seed_names = get_seed_names(seeds)
     # get the input data
     log.info("Getting input filenames and creating output directories")
-    #reference, individuals = get_input_data(log, conf, args.output)
     individuals = get_input_data(log, args, conf)
     for individual in individuals:
         sample, dir = individual
