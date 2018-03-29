@@ -25,6 +25,8 @@ import multiprocessing
 
 import numpy
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from itero import bwa
 from itero import samtools
@@ -165,11 +167,22 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
         try:
             assembly_fasta_fname = os.path.join(sample_dir_iter, "loci", locus, "{}-assembly".format(locus), "contigs.fasta")
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
-            if multiple_hits:
+            if len(sequence) > 1 and multiple_hits:
                 # keep only contigs > 100 bp
-                assemblies.extend([seq for seq in sequence if len(seq) >= 100])
-                assemblies_stats.extend([len(seq) for seq in assemblies])
-            elif not multiple_hits and len(sequence) == 1 and len(sequence[0]) >= 100:
+                for v, seq in enumerate(sequence):
+                    #pdb.set_trace()
+                    if len(seq) >= 100:
+                        if v == 0:
+                            new_seq = SeqRecord(seq)
+                            new_seq.id = seq.id.replace("NODE", locus.split("_")[0])
+                            new_seq.description = ""
+                            new_seq.name = ""
+                        else:
+                            new_seq.seq += Seq("".format(200*'N', seq))
+                        assemblies.extend([new_seq])
+                        assemblies_stats.extend([len(seq)])
+                        log.warn("Locus {} has multiple hits (allowed during initial rounds).  Padded both with Ns and put back into seeds.")
+            elif (len(sequence) == 1 or not multiple_hits) and len(sequence[0]) >= 100:
                 seq = sequence[0]
                 seq.id = seq.id.replace("NODE", locus.split("_")[0])
                 seq.description = ""
