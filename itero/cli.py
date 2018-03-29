@@ -25,6 +25,12 @@ import multiprocessing
 
 import numpy
 from Bio import SeqIO
+
+from itero import bwa
+from itero import samtools
+from itero import bedtools
+from itero import spades
+
 from itero.helpers import FullPaths, CreateDir, is_dir, is_file
 from itero.raw_reads import get_input_files
 from itero.log import setup_logging
@@ -125,7 +131,8 @@ def get_args():
         return p
 
 
-def get_input_data(log, conf, output):
+def get_input_data(log, args, conf):
+    '''
     # get reference sequence
     reference = conf.items('reference')
     # ensure there is 1 reference and it is a file
@@ -143,302 +150,28 @@ def get_input_data(log, conf, output):
         except:
             log.info("Need to create BWA index file for reference")
             bwa_create_index_files(log, reference)
+    '''
     individuals = conf.items('individuals')
+    updated_individuals = []
     for sample in individuals:
         try:
-            assert os.path.isdir(sample[1])
+            # deal with relative paths in config
+            if sample[1].startswith(".."):
+                pth = os.path.join(os.path.dirname(args.config), sample[1])
+            else:
+                pth = sample[1]
+            assert os.path.isdir(pth)
+            updated_individuals.append((sample[0], pth))
         except:
             raise IOError("{} is not a directory".format(sample[1]))
-    return reference, individuals
-
-
-def bwa_create_index_files(log, reference):
-    log.info("Running bwa indexing against {}".format(reference))
-    cwd = os.getcwd()
-    # move into reference directory
-    os.chdir(os.path.dirname(reference))
-    cmd = ["/home/bcf/anaconda/envs/circulator/bin/bwa", "index", reference]
-    with open('bwa-index-file.log', 'a') as outf:
-        proc = subprocess.Popen(cmd, stdout=outf, stderr=subprocess.STDOUT)
-        proc.communicate()
-    # mvoe back to working directory
-    os.chdir(cwd)
-
-
-def bwa_index_seeds(seeds, log):
-    #pdb.set_trace()
-    log.info("Running bwa indexing against {}".format(os.path.basename(seeds)))
-    cwd = os.getcwd()
-    # move into reference directory
-    os.chdir(os.path.dirname(seeds))
-    cmd = ["/home/bcf/anaconda/envs/circulator/bin/bwa", "index", seeds]
-    with open('bwa-index-file.log', 'a') as outf:
-        proc = subprocess.Popen(cmd, stdout=outf, stderr=subprocess.STDOUT)
-        proc.communicate()
-    # mvoe back to working directory
-    os.chdir(cwd)
-
-
-def bwa_mem_pe_align(log, sample, sample_dir, ref, cores, r1, r2, iteration=0):
-    #pdb.set_trace()
-    cmd1 = [
-        "/home/bcf/anaconda/envs/circulator/bin/bwa",
-        "mem",
-        "-t",
-        str(cores),
-        ref,
-        r1.pth,
-        r2.pth
-    ]
-    cmd2 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "view",
-        "-bS",
-        "-"
-    ]
-    sampe_out_fname = os.path.join(sample_dir, 'iter-{}.pe.bwa.log'.format(iteration))
-    samtools_out_fname = os.path.join(sample_dir, 'iter-{}.pe.samtools.log'.format(iteration))
-    bam_out_fname = os.path.join(sample_dir, 'iter-{}.bam'.format(iteration))
-    log.info("Building BAM for {}, iteration {}".format(sample, iteration))
-    with open(sampe_out_fname, 'w') as sampe_out:
-        with open(samtools_out_fname, 'w') as samtools_out:
-            with open(bam_out_fname, 'w') as bam_out:
-                proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr=sampe_out)
-                proc2 = subprocess.Popen(cmd2, stdin=proc1.stdout, stdout=bam_out, stderr=samtools_out)
-                proc1.stdout.close()
-                proc2.communicate()
-    return bam_out_fname
-
-
-def samtools_index(log, sample, sample_dir, bam, iteration=0):
-    log.info("Indexing BAM for {}".format(sample))
-    cmd = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "index",
-        bam
-    ]
-    samtools_out_fname = os.path.join(sample_dir, 'iter-{}.samtools-idx.log'.format(sample))
-    with open(samtools_out_fname, 'w') as samtools_out:
-        proc = subprocess.Popen(cmd, stdout=samtools_out, stderr=subprocess.STDOUT)
-        proc.communicate()
-
-
-def samtools_reduce(log, sample, sample_dir, bam, iteration=0):
-    #pdb.set_trace()
-    log.info("Reducing BAM for {}, iteration {}".format(sample, iteration))
-    bam_out_fname = os.path.join(sample_dir, 'iter-{}.reduce.bam'.format(iteration))
-    cmd = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "view",
-        "-F",
-        "4",
-        "-bq",
-        "1",
-        bam,
-        "-o",
-        bam_out_fname
-    ]
-    samtools_out_fname = os.path.join(sample_dir, 'iter-{}.reduce.log'.format(iteration))
-    with open(samtools_out_fname, 'w') as samtools_out:
-        proc = subprocess.Popen(cmd, stdout=samtools_out, stderr=subprocess.STDOUT)
-        proc.communicate()
-    return bam_out_fname
-
-
-def samtools_sort(log, sample, sample_dir, bam, iteration=0):
-    #pdb.set_trace()
-    bam_out_fname = os.path.join(sample_dir, 'iter-{}.reduce.sorted.bam'.format(iteration))
-    cmd1 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "sort",
-        bam,
-        "-o",
-        bam_out_fname
-    ]
-    samtools_out_fname = os.path.join(sample_dir, 'iter-{}.sort.log'.format(iteration))
-    with open(samtools_out_fname, 'w') as samtools_out:
-        proc = subprocess.Popen(cmd1, stdout=samtools_out, stderr=subprocess.STDOUT)
-        proc.communicate()
-    return bam_out_fname
-
-
-def samtools_get_locus_names_from_bam(log, bam, iteration):
-    #pdb.set_trace()
-    cmd1 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "view",
-        bam
-    ]
-    cmd2 = [
-        "awk",
-        '{print $3}',
-    ]
-    proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
-    proc2 = subprocess.Popen(cmd2, stdin=proc1.stdout, stdout=subprocess.PIPE)
-    proc1.stdout.close()
-    stdout = proc2.communicate()
-    # return unique list of locus names
-    locus_names = list(set(stdout[0].split("\n")))
-    locus_names.sort()
-    # make sure empty is removed
-    locus_names.remove('')
-    log.info("Recovered {} loci for iteration {}".format(len(locus_names), iteration))
-    return locus_names
-
-
-def samtools_split_bam(sample, sample_dir, bam, locus, clean, only_single_locus):
-    bam_out_fname = os.path.join(sample_dir, '{}.bam'.format(locus))
-    if only_single_locus:
-        bam_out_fname = bam
-    else:
-        cmd0 = [
-            "/home/bcf/anaconda/envs/circulator/bin/samtools",
-            "view",
-            "-b",
-            bam,
-            locus,
-            "-o",
-            bam_out_fname
-        ]
-        proc0 = subprocess.Popen(cmd0)
-        stdout = proc0.communicate()
-    # split the reduced files into properly paired and singleton reads
-    bam_out_fname_paired = os.path.join(sample_dir, '{}.paired.bam'.format(locus))
-    # -f 2 -F 2048 gets properly paired, non-supplementary alignments
-    cmd2 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "view",
-        "-f",
-        "2",
-        "-F",
-        "2048",
-        "-b",
-        bam_out_fname,
-        "-o",
-        bam_out_fname_paired
-    ]
-    proc2 = subprocess.Popen(cmd2)
-    stdout = proc2.communicate()
-    # sort the paired bam
-    bam_out_fname_paired_sorted = os.path.join(sample_dir, '{}.paired.sorted.bam'.format(locus))
-    cmd1 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "sort",
-        "-n",
-        bam_out_fname_paired,
-        "-o",
-        bam_out_fname_paired_sorted
-    ]
-    proc1 = subprocess.Popen(cmd1)
-    stdout = proc1.communicate()
-    bam_out_fname_singleton = os.path.join(sample_dir, '{}.singleton.bam'.format(locus))
-    cmd3 = [
-        "/home/bcf/anaconda/envs/circulator/bin/samtools",
-        "view",
-        "-f",
-        "8",
-        "-b",
-        bam_out_fname,
-        "-o",
-        bam_out_fname_singleton
-    ]
-    proc3 = subprocess.Popen(cmd3)
-    stdout = proc3.communicate()
-    if clean:
-        os.remove(bam_out_fname)
-        os.remove(bam_out_fname_paired)
-    return bam_out_fname_paired_sorted, bam_out_fname_singleton
+    #return reference, individuals
+    return updated_individuals
 
 
 def get_seed_names(seeds):
     with open(seeds, "ru") as infile:
         return [i.lstrip(">").rstrip() for i in infile if i.startswith(">")]
 
-
-def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus, clean):
-    fastq_out_fname_r1 = os.path.join(sample_dir, '{}.read1.fastq'.format(locus))
-    fastq_out_fname_r2 = os.path.join(sample_dir, '{}.read2.fastq'.format(locus))
-    fastq_out_fname_s = os.path.join(sample_dir, '{}.singleton.fastq'.format(locus))
-    cmd0 = [
-        "/home/bcf/bin/bedtools",
-        "bamtofastq",
-        "-i",
-        bam_paired,
-        "-fq",
-        fastq_out_fname_r1,
-        "-fq2",
-        fastq_out_fname_r2
-    ]
-    proc0 = subprocess.Popen(cmd0, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    # stderr may contain entries when chimeric reads are present.  these are not
-    # included in the output.
-    stdout, stderr = proc0.communicate()
-    cmd1 = [
-        "/home/bcf/bin/bedtools",
-        "bamtofastq",
-        "-i",
-        bam_singleton,
-        "-fq",
-        fastq_out_fname_s
-    ]
-    proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc1.communicate()
-    fastqs = {
-        1: fastq_out_fname_r1,
-        2: fastq_out_fname_r2,
-        's': fastq_out_fname_s
-    }
-    if clean:
-        os.remove(bam_paired)
-        os.remove(bam_singleton)
-    return fastqs
-
-
-def spades_paired_end_assembly(iteration, sample, sample_dir, fastqs, locus, clean):
-    assembly_out_fname = os.path.join(sample_dir, '{}-assembly'.format(locus))
-    # go ahead and assemble without error correction, for speed.
-    # explcitly set threads = 1
-    cmd1 = [
-        "/home/bcf/anaconda/envs/circulator/bin/spades.py",
-        "-t",
-        "1",
-        "-1",
-        fastqs[1],
-        "-2",
-        fastqs[2],
-        "-s",
-        fastqs['s'],
-        "-k",
-        "33",
-        "--cov-cutoff",
-        "5",
-        "-o",
-        assembly_out_fname
-    ]
-    # turn off error correction for non-final rounds, turn on error-correction
-    # for final round and also use --careful assembly option (both of these are
-    # slower)
-    if not iteration == 'final':
-        cmd1.append("--only-assembler")
-    if iteration == 'final':
-        cmd1.append("--careful")
-    # spades creates its own log file in the assembly dir - redirect to /dev/null
-    fnull_file = open(os.devnull, 'w')
-    proc = subprocess.Popen(cmd1, stdout=fnull_file, stderr=subprocess.STDOUT)
-    stdout, stderr = proc.communicate()
-    if clean:
-        to_delete = glob.glob(os.path.join(assembly_out_fname, "*"))
-        for element in ['contigs.fasta', 'scaffolds.fasta', 'spades.log']:
-            try:
-                to_delete.remove(os.path.join(assembly_out_fname, element))
-            except:
-                pass
-        for d in to_delete:
-            if os.path.isdir(d):
-                shutil.rmtree(d)
-            else:
-                os.remove(d)
-    return assembly_out_fname
 
 
 def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, iteration=0):
@@ -522,9 +255,9 @@ def initial_assembly(work):
     iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean, only_single_locus = work
     sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
     os.makedirs(sample_dir_iter_locus)
-    bam_paired, bam_singleton = samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean, only_single_locus)
-    fastqs = bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
-    spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
+    bam_paired, bam_singleton = samtools.samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean, only_single_locus)
+    fastqs = bedtools.bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
+    spades.spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
     sys.stdout.write('.')
     sys.stdout.flush()
 
@@ -555,11 +288,15 @@ def main():
     conf.read(args.config)
     # get the seed file info
     seeds = conf.items("reference")[0][0]
+    # deal with relative paths in config
+    if seeds.startswith(".."):
+        seeds = os.path.join(os.path.dirname(args.config), seeds)
     # get name of all loci in seeds file - only need to do this once
     seed_names = get_seed_names(seeds)
     # get the input data
     log.info("Getting input filenames and creating output directories")
-    reference, individuals = get_input_data(log, conf, args.output)
+    #reference, individuals = get_input_data(log, conf, args.output)
+    individuals = get_input_data(log, args, conf)
     for individual in individuals:
         sample, dir = individual
         # pretty print taxon status
@@ -604,23 +341,23 @@ def main():
                 prev_iter = get_previous_iter(log, sample_dir_iter, iterations, iteration)
                 zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, prev_iter)
             #index the seed file
-            bwa_index_seeds(seeds, log)
+            bwa.bwa_index_seeds(seeds, log)
             # map initial reads to seeds
-            bam = bwa_mem_pe_align(log, sample, sample_dir_iter, seeds, args.local_cores, fastq.r1, fastq.r2, iteration)
+            bam = bwa.bwa_mem_pe_align(log, sample, sample_dir_iter, seeds, args.local_cores, fastq.r1, fastq.r2, iteration)
             # reduce bam to mapping reads
-            reduced_bam = samtools_reduce(log, sample, sample_dir_iter, bam, iteration=iteration)
+            reduced_bam = samtools.samtools_reduce(log, sample, sample_dir_iter, bam, iteration=iteration)
             # remove the un-reduced BAM
             os.remove(bam)
             # sort and index bam
-            sorted_reduced_bam = samtools_sort(log, sample, sample_dir_iter, reduced_bam, iteration=iteration)
-            samtools_index(log, sample, sample_dir_iter, sorted_reduced_bam, iteration=iteration)
+            sorted_reduced_bam = samtools.samtools_sort(log, sample, sample_dir_iter, reduced_bam, iteration=iteration)
+            samtools.samtools_index(log, sample, sample_dir_iter, sorted_reduced_bam, iteration=iteration)
             # remove the un-sorted BAM
             os.remove(reduced_bam)
             if args.only_single_locus:
                 locus_names = ['locus-1']
             else:
                 # get list of loci in sorted bam
-                locus_names = samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
+                locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
             log.info("Splitting BAM and assembling")
             if args.use_mpi:
                 locus_file = "iter-{}.loci.csv".format(iteration)
