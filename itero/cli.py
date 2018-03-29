@@ -360,7 +360,7 @@ def main():
                     "-n",
                     str(args.mpi_cores),
                     "python",
-                    "/nfs/data1/working/bfaircloth-lagniappe/itero/mpi_parallelize.py",
+                    os.path.join(os.path.dirname(__file__), "mpi_parallelize.py"),
                     str(iteration),
                     sample,
                     sample_dir_iter,

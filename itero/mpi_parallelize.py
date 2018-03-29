@@ -45,7 +45,11 @@ import os
 import sys
 import numpy
 
-from itero import samtools_split_bam, bedtools_to_fastq, spades_paired_end_assembly, initial_assembly
+#from itero import samtools_split_bam, bedtools_to_fastq, spades_paired_end_assembly, initial_assembly
+
+from itero.cli import initial_assembly
+
+
 from mpi4py import MPI
 
 
