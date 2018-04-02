@@ -221,12 +221,6 @@ def get_deltas(log, sample, sample_dir_iter, iterations, iteration=0):
     current = numpy.genfromtxt(current_fasta_stats_fname, delimiter=",", skip_header=1)
     basename, directory = os.path.split(sample_dir_iter)
     prev_iter = get_previous_iter(log, sample_dir_iter, iterations, iteration)
-    #if iteration == 'polished':
-    #    # previous round of assembly
-    #    prev_iter = iterations[-2]
-    #else:
-    #    # previous round of assembly
-    #    prev_iter = int(directory.split('-')[1]) - 1
     previous_sample_dir_iter = os.path.join(basename, "iter-{}".format(prev_iter))
     previous_fasta_stats_fname = os.path.join(previous_sample_dir_iter, 'iter-{}.all-fasta.stats.csv'.format(prev_iter))
     previous = numpy.genfromtxt(previous_fasta_stats_fname, delimiter=",", skip_header=1)
