@@ -353,12 +353,16 @@ def main():
                 locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
             log.info("Splitting BAM and assembling")
             if args.use_mpi:
+                nodefile=os.environ["PBS_NODEFILE"]
+                log.info("Nodefile is {}".format(nodefile))
                 locus_file = "iter-{}.loci.csv".format(iteration)
                 numpy.savetxt(locus_file, locus_names, delimiter=",", fmt='%s')
                 cmd = [
                     "mpirun",
-                    "-n",
+                    "-np",
                     str(args.mpi_cores),
+                    "-machinefile",
+                    nodefile,
                     "python",
                     os.path.join(os.path.dirname(__file__), "mpi_parallelize.py"),
                     str(iteration),
