@@ -231,7 +231,7 @@ def get_deltas(log, sample, sample_dir_iter, iterations, iteration=0):
 
 def get_previous_iter(log, sample_dir_iter, iterations, iteration):
     basename, directory = os.path.split(sample_dir_iter)
-    if iteration == 'polished':
+    if iteration == 'final':
         # previous round of assembly
         prev_iter = iterations[-2]
     else:
@@ -301,7 +301,8 @@ def main():
         # determine how many files we're dealing with
         fastq = get_input_files(dir, args.subfolder, log)
         #pdb.set_trace()
-        iterations = list(xrange(args.iterations)) + ['polished']
+        iterations = list(xrange(args.iterations)) + ['final']
+        next_to_last_iter = iterations[-2]
         for iteration in iterations:
             text = " Iteration {} ".format(iteration)
             log.info(text.center(45, "-"))
@@ -346,54 +347,58 @@ def main():
             samtools.samtools_index(log, sample, sample_dir_iter, sorted_reduced_bam, iteration=iteration)
             # remove the un-sorted BAM
             os.remove(reduced_bam)
-            if args.only_single_locus:
-                locus_names = ['locus-1']
-            else:
-                # get list of loci in sorted bam
-                locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
-            log.info("Splitting BAM and assembling")
-            if args.use_mpi:
-                nodefile=os.environ["PBS_NODEFILE"]
-                log.info("Nodefile is {}".format(nodefile))
-                locus_file = "iter-{}.loci.csv".format(iteration)
-                numpy.savetxt(locus_file, locus_names, delimiter=",", fmt='%s')
-                cmd = [
-                    "mpirun",
-                    "-np",
-                    str(args.mpi_cores),
-                    "-machinefile",
-                    nodefile,
-                    "python",
-                    os.path.join(os.path.dirname(__file__), "mpi_parallelize.py"),
-                    str(iteration),
-                    sample,
-                    sample_dir_iter,
-                    sorted_reduced_bam,
-                    str(args.clean),
-                    locus_file
-                ]
-                proc = subprocess.Popen(cmd)
-                stdout, stderr = proc.communicate()
-            else:
-                work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
-                if not args.only_single_locus and args.local_cores > 1:
-                    assert args.local_cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
-                    pool = multiprocessing.Pool(args.local_cores)
-                    pool.map(initial_assembly, work)
-                elif args.only_single_locus:
-                    map(initial_assembly, work)
+            # if we are not on our last iteration, assembly as usual
+            if iteration is not 'final':
+                if args.only_single_locus:
+                    locus_names = ['locus-1']
                 else:
-                    map(initial_assembly, work)
-            # after assembling all loci, get them into a single file
-            new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, allow_multiple_contigs, iteration=iteration)
-            # after assembling all loci, report on deltas of the assembly length
-            if iteration is not 0:
-                assembly_delta = get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
-            if iteration is 'polished':
-                # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
-                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, 'polished')
-        # assemblies basically get polished by spades.  maybe skip assembly
-        # polishing for now
+                    # get list of loci in sorted bam
+                    locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
+                log.info("Splitting BAM and assembling")
+                if args.use_mpi:
+                    nodefile=os.environ["PBS_NODEFILE"]
+                    log.info("Nodefile is {}".format(nodefile))
+                    locus_file = "iter-{}.loci.csv".format(iteration)
+                    numpy.savetxt(locus_file, locus_names, delimiter=",", fmt='%s')
+                    cmd = [
+                        "mpirun",
+                        "-np",
+                        str(args.mpi_cores),
+                        "-machinefile",
+                        nodefile,
+                        "python",
+                        os.path.join(os.path.dirname(__file__), "mpi_parallelize.py"),
+                        str(iteration),
+                        sample,
+                        sample_dir_iter,
+                        sorted_reduced_bam,
+                        str(args.clean),
+                        locus_file
+                    ]
+                    proc = subprocess.Popen(cmd)
+                    stdout, stderr = proc.communicate()
+                else:
+                    work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
+                    if not args.only_single_locus and args.local_cores > 1:
+                        assert args.local_cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
+                        pool = multiprocessing.Pool(args.local_cores)
+                        pool.map(initial_assembly, work)
+                    elif args.only_single_locus:
+                        map(initial_assembly, work)
+                    else:
+                        map(initial_assembly, work)
+                # after assembling all loci, get them into a single file
+                new_seeds = get_fasta(log, sample, sample_dir_iter, locus_names, allow_multiple_contigs, iteration=iteration)
+                # after assembling all loci, report on deltas of the assembly length
+                if iteration is not 0:
+                    assembly_delta = get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
+                #
+                #if iteration is 'final':
+                #    prev_iter = get_previous_iter(log, sample_dir_iter, iterations, iteration)
+                #    # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
+                #    zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, prev_iter)
+            elif iteration is 'final':
+                log.info("Final assemblies and a BAM file with alignments to those assemblies are in {}/{}".format(individual, iteration))
 
     end_time = time.time()
     time_delta_sec = round(end_time - start_time, 1)
