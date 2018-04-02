@@ -167,22 +167,25 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
         try:
             assembly_fasta_fname = os.path.join(sample_dir_iter, "loci", locus, "{}-assembly".format(locus), "contigs.fasta")
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
-            if len(sequence) > 1 and multiple_hits:
+            if len(sequence) > 1 and multiple_hits is True:
                 # keep only contigs > 100 bp
                 for v, seq in enumerate(sequence):
                     #pdb.set_trace()
                     if len(seq) >= 100:
                         if v == 0:
-                            new_seq = SeqRecord(seq)
+                            new_seq = SeqRecord(seq.seq)
                             new_seq.id = seq.id.replace("NODE", locus.split("_")[0])
                             new_seq.description = ""
                             new_seq.name = ""
                         else:
-                            new_seq.seq += Seq("".format(200*'N', seq))
-                        assemblies.extend([new_seq])
-                        assemblies_stats.extend([len(seq)])
-                        log.warn("Locus {} has multiple hits (allowed during initial rounds).  Padded both with Ns and put back into seeds.")
-            elif (len(sequence) == 1 or not multiple_hits) and len(sequence[0]) >= 100:
+                            #pdb.set_trace()
+                            new_seq.seq += Seq("{}".format(200*'N')) + seq.seq
+                    else:
+                        pass
+                log.warn("Locus {} has multiple hits (allowed during initial rounds).  Padded both with Ns and put back into seeds.".format(new_seq.id.split("_")[0]))
+                assemblies.append(new_seq)
+                assemblies_stats.append(len(new_seq.seq.strip("N")))
+            elif (len(sequence) == 1 or multiple_hits is False) and len(sequence[0]) >= 100:
                 seq = sequence[0]
                 seq.id = seq.id.replace("NODE", locus.split("_")[0])
                 seq.description = ""
@@ -190,16 +193,18 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                 assemblies.append(seq)
                 assemblies_stats.append(len(seq))
             else:
-                log.warn("Dropped locus {} for having multiple contigs".format(locus))
+                log.warn("Dropped locus {} for having multiple contigs or being short (<100 bp)".format(locus))
         except IOError:
             log.warn("Dropped locus {} for having no assembled contigs (or coverage < 5)".format(locus))
-        except AttributeError:
-            pdb.set_trace()
     if len(assemblies) == 0:
         log.critical("Zero valid contigs were assembled.  Quitting.")
         sys.exit()
     with open(all_fasta_out_fname, 'w') as outfile:
-        SeqIO.write(assemblies, outfile, 'fasta')
+        for assembly in assemblies:
+            try:
+                outfile.write(assembly.format('fasta'))
+            except TypeError:
+                log.error("Dropped sequence {} because of unspecific sequence error".format(assembly.id.split("_")[0]))
     log.info("{} sequences. Mean sequence length {}, min {}, max {}".format(
         len(assemblies_stats),
         numpy.mean(assemblies_stats),
@@ -305,12 +310,12 @@ def main():
         for iteration in iterations:
             text = " Iteration {} ".format(iteration)
             log.info(text.center(45, "-"))
-            # If iteration == 'final', set some things up differently
-            ## First, we'll allow multiple contigs during all but the final rounds of contig assembly.
+            # One the last few iterations, set some things up differently to deal w/ dupe contigs.
+            ## First, we'll allow multiple contigs during all but the last few rounds of contig assembly.
             ## This is because we could be assembling different parts of a locus that simply have not
             ## merged in the middle yet (but will).  We'll turn option to remove multiple contigs
             ## back on for final round
-            if iteration == 'final':
+            if iteration in iterations[-3:]:
                 if args.allow_multiple_contigs is True:
                     allow_multiple_contigs = True
                 else:
