@@ -237,7 +237,7 @@ def get_deltas(log, sample, sample_dir_iter, iterations, iteration=0):
 
 def get_previous_iter(log, sample_dir_iter, iterations, iteration):
     basename, directory = os.path.split(sample_dir_iter)
-    if iteration == 'final':
+    if iteration == 'polished':
         # previous round of assembly
         prev_iter = iterations[-2]
     else:
@@ -307,7 +307,7 @@ def main():
         # determine how many files we're dealing with
         fastq = get_input_files(dir, args.subfolder, log)
         #pdb.set_trace()
-        iterations = list(xrange(args.iterations)) + ['final']
+        iterations = list(xrange(args.iterations)) + ['polished']
         for iteration in iterations:
             text = " Iteration {} ".format(iteration)
             log.info(text.center(45, "-"))
@@ -315,7 +315,7 @@ def main():
             ## First, we'll allow multiple contigs during all but the last few rounds of contig assembly.
             ## This is because we could be assembling different parts of a locus that simply have not
             ## merged in the middle yet (but will).  We'll turn option to remove multiple contigs
-            ## back on for final round
+            ## back on for last three rounds
             if iteration in iterations[-3:]:
                 if args.allow_multiple_contigs is True:
                     allow_multiple_contigs = True
@@ -395,9 +395,9 @@ def main():
             # after assembling all loci, report on deltas of the assembly length
             if iteration is not 0:
                 assembly_delta = get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
-            if iteration is 'final':
+            if iteration is 'polished':
                 # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
-                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, 'final')
+                zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, 'polished')
         # assemblies basically get polished by spades.  maybe skip assembly
         # polishing for now
 
