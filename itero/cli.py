@@ -368,8 +368,9 @@ def main():
                 work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
                 if args.use_mpi:
                     COMM = MPI.COMM_WORLD
+                    SIZE = args.mpi_cores
                     if COMM.rank == 0:
-                        jobs = split(work, COMM.size)
+                        jobs = split(work, SIZE)
                     else:
                         jobs = None
                     # Scatter jobs across cores.
