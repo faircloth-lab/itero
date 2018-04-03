@@ -28,6 +28,8 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from mpi4py import MPI
+
 from itero import bwa
 from itero import samtools
 from itero import bedtools
@@ -269,6 +271,14 @@ def zip_assembly_dir(log, sample_dir_iter, clean, prev_iter):
     # remove unzipped directory
     shutil.rmtree(prev_sample_locus_iter)
 
+def split(container, count):
+    """
+    Simple function splitting a container into equal length chunks.
+    Order is not preserved but this is potentially an advantage depending on
+    the use case.
+    """
+    return [container[_i::count] for _i in range(count)]
+
 
 def main():
     start_time = time.time()
@@ -355,30 +365,18 @@ def main():
                     # get list of loci in sorted bam
                     locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
                 log.info("Splitting BAM and assembling")
+                work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
                 if args.use_mpi:
-                    nodefile=os.environ["PBS_NODEFILE"]
-                    log.info("Nodefile is {}".format(nodefile))
-                    locus_file = "iter-{}.loci.csv".format(iteration)
-                    numpy.savetxt(locus_file, locus_names, delimiter=",", fmt='%s')
-                    cmd = [
-                        "mpirun",
-                        "-np",
-                        str(args.mpi_cores),
-                        "-machinefile",
-                        nodefile,
-                        "python",
-                        os.path.join(os.path.dirname(__file__), "mpi_parallelize.py"),
-                        str(iteration),
-                        sample,
-                        sample_dir_iter,
-                        sorted_reduced_bam,
-                        str(args.clean),
-                        locus_file
-                    ]
-                    proc = subprocess.Popen(cmd)
-                    stdout, stderr = proc.communicate()
+                    COMM = MPI.COMM_WORLD
+                    if COMM.rank == 0:
+                        jobs = split(work, COMM.size)
+                    else:
+                        jobs = None
+                    # Scatter jobs across cores.
+                    jobs = COMM.scatter(jobs, root=0)
+                    for job in jobs:
+                        initial_assembly(job)
                 else:
-                    work = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
                     if not args.only_single_locus and args.local_cores > 1:
                         assert args.local_cores <= multiprocessing.cpu_count(), "You've specified more cores than you have"
                         pool = multiprocessing.Pool(args.local_cores)
