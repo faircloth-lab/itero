@@ -170,7 +170,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
     print("")
     for locus in locus_names:
         try:
-            assembly_fasta_fname = os.path.join(sample_dir_iter, "loci", locus, "{}-assembly".format(locus), "contigs.fasta")
+            assembly_fasta_fname = os.path.join(sample_dir_iter, "loci","{}.fasta".format(locus))
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
             if len(sequence) > 1 and multiple_hits is True:
                 # keep only contigs > 100 bp
@@ -256,7 +256,13 @@ def initial_assembly(work):
     os.makedirs(sample_dir_iter_locus)
     bam_paired, bam_singleton = samtools.samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean, only_single_locus)
     fastqs = bedtools.bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
-    spades.spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
+    spades_assembly_dir = spades.spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
+    spades_assembly_fasta = os.path.join(spades_assembly_dir, "contigs.fasta")
+    # if the assembly exists, copy it
+    if os.path.isfile(spades_assembly_fasta):
+        shutil.copyfile(spades_assembly_fasta, os.path.join(sample_dir_iter, "loci","{}.fasta".format(locus)))
+    if clean:
+        shutil.rmtree(sample_dir_iter_locus)
     sys.stdout.write('.')
     sys.stdout.flush()
     return 0
