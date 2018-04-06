@@ -264,16 +264,20 @@ def initial_assembly(work):
 
 # this works ok, except we need to only be zipping the individual locus files.
 def zip_assembly_dir(log, sample_dir_iter, clean, prev_iter):
-    log.info("Zipping the locus directory for iter-{}".format(prev_iter))
-    if not clean:
-        log.warn("You are not using --clean.  Zipping may be slow.")
     prev_sample_locus_iter = os.path.join(get_previous_sample_dir_iter(log, sample_dir_iter, prev_iter), "loci")
-    #pdb.set_trace()
-    output_tarfile = "{}.tar.gz".format(prev_sample_locus_iter)
-    with tarfile.open(output_tarfile, "w:gz") as tar:
-        tar.add(prev_sample_locus_iter, arcname=os.path.basename(prev_sample_locus_iter))
-    # remove unzipped directory
-    shutil.rmtree(prev_sample_locus_iter)
+    if not clean:
+        log.info("Zipping the locus directory for iter-{}. May be slow, particularly on HPC.".format(prev_iter))
+        #pdb.set_trace()
+        output_tarfile = "{}.tar.gz".format(prev_sample_locus_iter)
+        with tarfile.open(output_tarfile, "w:gz") as tar:
+            tar.add(prev_sample_locus_iter, arcname=os.path.basename(prev_sample_locus_iter))
+        # remove unzipped directory
+        shutil.rmtree(prev_sample_locus_iter)
+    else:
+        # NUKE IT
+        # remove unzipped directory
+        shutil.rmtree(prev_sample_locus_iter)
+
 
 def split(container, count):
     """
@@ -355,7 +359,7 @@ def main():
                 elif iteration >= 1:
                     shutil.copy(new_seeds, os.getcwd())
                     seeds = os.path.join(os.getcwd(), os.path.basename(new_seeds))
-                # if we are finished with it, zip the previous iteration
+                # if we are finished with it, cleanup the previous iteration
                 if not args.do_not_zip and iteration >= 1:
                     # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
                     prev_iter = get_previous_iter(log, sample_dir_iter, iterations, iteration)

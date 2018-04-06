@@ -38,16 +38,4 @@ def spades_paired_end_assembly(iteration, sample, sample_dir, fastqs, locus, cle
     fnull_file = open(os.devnull, 'w')
     proc = subprocess.Popen(cmd1, stdout=fnull_file, stderr=subprocess.STDOUT)
     stdout, stderr = proc.communicate()
-    if clean:
-        to_delete = glob.glob(os.path.join(assembly_out_fname, "*"))
-        for element in ['contigs.fasta', 'scaffolds.fasta', 'spades.log']:
-            try:
-                to_delete.remove(os.path.join(assembly_out_fname, element))
-            except:
-                pass
-        for d in to_delete:
-            if os.path.isdir(d):
-                shutil.rmtree(d)
-            else:
-                os.remove(d)
     return assembly_out_fname
