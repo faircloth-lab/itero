@@ -2,30 +2,15 @@
 
 
 import os
-import sys
 import time
-import glob
 import shutil
-import tarfile
-import argparse
-import subprocess
 import ConfigParser
 import multiprocessing
 
-import numpy
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
-from mpi4py import MPI
-
 from itero import bwa
 from itero import samtools
-from itero import bedtools
-from itero import spades
 from itero import common
 
-from itero.helpers import FullPaths, CreateDir, is_dir, is_file
 from itero.raw_reads import get_input_files
 from itero.log import setup_logging
 

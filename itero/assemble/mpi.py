@@ -12,11 +12,6 @@ import time
 import shutil
 import ConfigParser
 
-
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
 from mpi4py import MPI
 
 from itero import bwa
