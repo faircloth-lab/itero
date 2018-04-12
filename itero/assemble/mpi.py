@@ -17,8 +17,8 @@ from mpi4py import MPI
 from itero import bwa
 from itero import samtools
 from itero import common
+from itero import raw_reads
 
-from itero.raw_reads import get_input_files
 from itero.log import setup_logging
 
 import pdb
@@ -30,15 +30,6 @@ def enum(*sequential, **named):
     """
     enums = dict(zip(sequential, range(len(sequential))), **named)
     return type('Enum', (), enums)
-
-
-def split(container, count):
-    """
-    Simple function splitting a container into equal length chunks.
-    Order is not preserved but this is potentially an advantage depending on
-    the use case.
-    """
-    return [container[_i::count] for _i in range(count)]
 
 
 def main(args, parser):
@@ -54,7 +45,8 @@ def main(args, parser):
         start_time = time.time()
         # setup logging
         log, my_name = setup_logging(args)
-        # Make the output directory or die
+        # UNIQUE TO MPI CODE - so that processes will die if output directory
+        # exists. So, make the output directory or die
         if os.path.exists(args.output):
             log.critical("THE OUTPUT DIRECTORY EXISTS.  QUITTING.")
             comm.Abort()
@@ -84,8 +76,7 @@ def main(args, parser):
             sample_dir = os.path.join(args.output, sample)
             os.makedirs(sample_dir)
             # determine how many files we're dealing with
-            fastq = get_input_files(dir, args.subfolder, log)
-            #pdb.set_trace()
+            fastq = raw_reads.get_input_files(dir, args.subfolder, log)
             iterations = list(xrange(args.iterations)) + ['final']
             next_to_last_iter = iterations[-2]
             for iteration in iterations:
@@ -166,17 +157,12 @@ def main(args, parser):
                             closed_workers += 1
                             comm.send(None, dest=0, tag=tags.READY)
                     #print "Master finishing"
-                    time.sleep(2)
+                    time.sleep(5)
                     # after assembling all loci, get them into a single file
                     new_seeds = common.get_fasta(log, sample, sample_dir_iter, locus_names, allow_multiple_contigs, iteration=iteration)
                     # after assembling all loci, report on deltas of the assembly length
                     if iteration is not 0:
                         assembly_delta = common.get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
-                    #
-                    #if iteration is 'final':
-                    #    prev_iter = get_previous_iter(log, sample_dir_iter, iterations, iteration)
-                    #    # after assembling all loci, zip the iter-#/loci directory; this will be slow if --clean is not turned on.
-                    #    zipped = zip_assembly_dir(log, sample_dir_iter, args.clean, prev_iter)
                 elif iteration is 'final':
                     log.info("Final assemblies and a BAM file with alignments to those assemblies are in {}/iter-{}".format(os.path.join(args.output, individual[0]), iteration))
         end_time = time.time()
