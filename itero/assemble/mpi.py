@@ -210,18 +210,20 @@ def main(args, parser):
     size = comm.size        # total number of processes
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
-    print args
-    pdb.set_trace()
+    #print args
+    #
     if rank == 0:
-    	# Make the output directory or die
-    	if os.path.exists(args.output):
-            log.critical("The output directory exists")
-        # create the new directory
-        os.makedirs(args.output)
         # Master process executes code below
         start_time = time.time()
         # setup logging
         log, my_name = setup_logging(args)
+        # Make the output directory or die
+        if os.path.exists(args.output):
+            log.critical("THE OUTPUT DIRECTORY EXISTS.  QUITTING.")
+            comm.Abort()
+        else:
+            # create the new directory
+            os.makedirs(args.output)
         # get seeds from config file
         conf = ConfigParser.ConfigParser(allow_no_value=True)
         conf.optionxform = str

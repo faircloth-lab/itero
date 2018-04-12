@@ -197,10 +197,6 @@ def split(container, count):
 
 
 def main(args, parser):
-    # Define MPI message tags
-    tags = enum('READY', 'DONE', 'EXIT', 'START')
-    print args
-    pdb.set_trace()
     # Master process executes code below
     start_time = time.time()
     # setup logging

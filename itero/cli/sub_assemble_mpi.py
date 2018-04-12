@@ -13,6 +13,7 @@ from __future__ import absolute_import
 
 from itero.cli import common
 from itero.assemble import mpi
+from itero.helpers import FullPaths
 
 
 descr = "Assemble reads using MPI for assembly."
@@ -30,6 +31,7 @@ def configure_parser(sub_parsers):
     sp.add_argument(
         "--output",
         required=True,
+        action=FullPaths,
         help="""The directory in which to store the output"""
     )
     sp.set_defaults(func=run_mpi_assembly)
