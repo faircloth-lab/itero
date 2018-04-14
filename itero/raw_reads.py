@@ -1,14 +1,16 @@
 #!/usr/bin/env python
-# encoding: utf-8
-"""
-File: assembly.py
-Author: Brant Faircloth
-
-Created by Brant Faircloth on 30 September 2013 10:09 PDT (-0700)
-Copyright (c) 2013 Brant C. Faircloth. All rights reserved.
+# -*- coding: utf-8 -*-
 
 """
+(c) 2018 Brant Faircloth || http://faircloth-lab.org/
 
+All rights reserved.
+
+This code is distributed under a 3-clause BSD license. Please see
+LICENSE.txt for more information.
+
+Created on 14 April 2018 16:12 CDT (-0500)
+"""
 
 import os
 import re

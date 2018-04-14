@@ -1,11 +1,15 @@
 #!/usr/bin/env python
-# encoding: utf-8
+# -*- coding: utf-8 -*-
 
 """
-helpers.py
+(c) 2018 Brant Faircloth || http://faircloth-lab.org/
 
-Created by Brant Faircloth on 15 July 2011.
-Copyright 2011 Brant C. Faircloth. All rights reserved.
+All rights reserved.
+
+This code is distributed under a 3-clause BSD license. Please see
+LICENSE.txt for more information.
+
+Created on 14 April 2018 16:11 CDT (-0500)
 """
 
 import os
@@ -15,10 +19,10 @@ import glob
 import argparse
 import shutil
 import ConfigParser
-#from operator import itemgetter
 from collections import defaultdict
 
 #import pdb
+
 
 class FullPaths(argparse.Action):
     """Expand user- and relative-paths"""

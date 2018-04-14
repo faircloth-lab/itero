@@ -2,20 +2,22 @@
 # -*- coding: utf-8 -*-
 
 """
-(c) 2015 Brant Faircloth || http://faircloth-lab.org/
+(c) 2018 Brant Faircloth || http://faircloth-lab.org/
+
 All rights reserved.
 
 This code is distributed under a 3-clause BSD license. Please see
 LICENSE.txt for more information.
 
-Created on 11 April 2015 16:57 CDT (-0500)
+Created on 14 April 2018 16:12 CDT (-0500)
 """
 
 import os
 import sys
 import ConfigParser
 
-import pdb
+#import pdb
+
 
 def get_user_path(program, binary, package_only=False):
     config = ConfigParser.ConfigParser()

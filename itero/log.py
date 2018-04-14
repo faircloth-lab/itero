@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-# encoding: utf-8
+# -*- coding: utf-8 -*-
+
 """
-File: logging.py
-Author: Brant Faircloth
+(c) 2018 Brant Faircloth || http://faircloth-lab.org/
 
-Created by Brant Faircloth on 03 October 2013 14:10 PDT (-0700)
-Copyright (c) 2013 Brant C. Faircloth. All rights reserved.
+All rights reserved.
 
-Description:
+This code is distributed under a 3-clause BSD license. Please see
+LICENSE.txt for more information.
 
+Created on 14 April 2018 16:12 CDT (-0500)
 """
 
 import os
