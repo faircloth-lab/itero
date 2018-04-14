@@ -8,6 +8,7 @@ If installed using `conda`, all of the `itero` dependencies should also be insta
 
 * numpy
 * biopython
+* mpi4py
 * schwimmbad
 * six
 
