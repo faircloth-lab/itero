@@ -1,19 +1,11 @@
 #!/usr/bin/env python
 
 
-"""This code utilizes the task pull paradigm contributed by Craig Finch
-(cfinch@ieee.org) availalable from:
-
-https://github.com/jbornschein/mpi4py-examples/blob/master/09-task-pull.py
-"""
-
 import os
 import sys
 import time
 import shutil
 import ConfigParser
-
-#from mpi4py import MPI
 
 from itero import bwa
 from itero import samtools
@@ -23,14 +15,6 @@ from itero import raw_reads
 from itero.log import setup_logging
 
 import pdb
-
-
-def enum(*sequential, **named):
-    """Handy way to fake an enumerated type in Python
-    http://stackoverflow.com/questions/36932/how-can-i-represent-an-enum-in-python
-    """
-    enums = dict(zip(sequential, range(len(sequential))), **named)
-    return type('Enum', (), enums)
 
 
 def main(args, parser, mpi=False):
