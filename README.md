@@ -4,6 +4,10 @@ A pipeline for iterative, guided contig assembly that integrates spades, bwa, an
 ## Requirements
 If installed using `conda`, all of the `itero` dependencies should also be installed.  These include:
 
+### Python
+
+* 2.7
+
 ### Python Modules
 
 * numpy
