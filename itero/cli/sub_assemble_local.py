@@ -12,7 +12,7 @@ Created on 27 December 2013 13:12 PST (-0800)
 from __future__ import absolute_import
 
 from itero.cli import common
-from itero.assemble import local
+from itero.assemble import merged
 from itero.helpers import CreateDir
 
 
