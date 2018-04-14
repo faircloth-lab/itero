@@ -10,19 +10,19 @@ If installed using `conda`, all of the `itero` dependencies should also be insta
 
 ### Python Modules
 
-* numpy
-* biopython
-* mpi4py
-* schwimmbad
-* six
+* [numpy](http://www.numpy.org)
+* [biopython](http://biopython.org)
+* [mpi4py](http://mpi4py.scipy.org/docs/)
+* [schwimmbad](https://github.com/adrn/schwimmbad)
+* [six](https://pythonhosted.org/six/)
 
 ### 3rd-party programs
 
-* bedtools
-* bwa
-* gawk
-* samtools
-* spades
+* [bedtools](http://bedtools.readthedocs.io/en/latest/)
+* [bwa](http://bio-bwa.sourceforge.net)
+* [gawk](https://www.gnu.org/software/gawk/)
+* [samtools](https://samtools.github.io)
+* [spades](http://bioinf.spbau.ru/spades)
 
 ## Installation
 
