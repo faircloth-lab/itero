@@ -22,7 +22,6 @@ def bwa_create_index_files(log, reference):
 
 
 def bwa_index_seeds(seeds, log):
-    #pdb.set_trace()
     log.info("Running bwa indexing against {}".format(os.path.basename(seeds)))
     cwd = os.getcwd()
     # move into reference directory
