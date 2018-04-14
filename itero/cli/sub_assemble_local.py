@@ -38,4 +38,4 @@ def configure_parser(sub_parsers):
 
 
 def run_local_assembly(args, parser):
-    local.main(args, parser)
+    merged.main(args, parser, mpi=False)

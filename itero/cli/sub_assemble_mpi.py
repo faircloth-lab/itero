@@ -38,4 +38,4 @@ def configure_parser(sub_parsers):
 
 
 def run_mpi_assembly(args, parser):
-    mpi.main(args, parser)
+    merged.main(args, parser, mpi=True)
