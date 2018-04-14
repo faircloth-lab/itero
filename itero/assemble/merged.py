@@ -42,6 +42,8 @@ def main(args, parser, mpi=False):
         if not mpi_pool.is_master():
             mpi_pool.wait()
             sys.exit(0)
+    else:
+        import multiprocessing
     start_time = time.time()
     # setup logging
     log, my_name = setup_logging(args)
