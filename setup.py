@@ -31,7 +31,7 @@ setup(
     data_files=[('config', ['itero/config/itero.conf'])],
     scripts=['bin/itero'],
     package_data={'': package_files('itero/tests')},
-    install_requires=['numpy', 'schwimmbad', 'biopython', 'six'],
+    install_requires=['numpy', 'schwimmbad', 'biopython', 'six', 'mpi4py'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
