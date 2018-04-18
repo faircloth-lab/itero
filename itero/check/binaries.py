@@ -1,3 +1,16 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+(c) 2018 Brant Faircloth || http://faircloth-lab.org/
+
+All rights reserved.
+
+This code is distributed under a 3-clause BSD license. Please see
+LICENSE.txt for more information.
+
+Created on 18 April 2018 15:35 CDT (-0500)
+"""
 
 from collections import OrderedDict
 
@@ -9,7 +22,6 @@ from itero import bwa
 from itero import samtools
 from itero import bedtools
 from itero import spades
-
 
 # import pdb
 
