@@ -24,6 +24,5 @@ http://continuum.io and available under a 3-clause BSD license.
 """
 
 from __future__ import absolute_import
-from itero.cli.main import main
 
 __version__='1.0.0'
