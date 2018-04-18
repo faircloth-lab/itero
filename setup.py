@@ -2,8 +2,8 @@
 # encoding: utf-8
 
 import os
-#from distutils.core import setup
 from setuptools import setup
+from itero import __version__
 
 
 def package_files(directory):
@@ -18,7 +18,7 @@ def package_files(directory):
 
 setup(
     name='itero',
-    version='1.0.0',
+    version=__version__,
     description='a strongly opinionated, iterative, guided assembly pipeline',
     url='https://github.com/faircloth-lab/itero',
     author='Brant C. Faircloth',
@@ -31,7 +31,7 @@ setup(
     data_files=[('config', ['itero/config/itero.conf'])],
     scripts=['bin/itero'],
     package_data={'': package_files('itero/tests')},
-    install_requires=['numpy', 'schwimmbad', 'biopython', 'six'],
+    install_requires=['numpy', 'schwimmbad', 'biopython', 'six', 'mpi4py'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
