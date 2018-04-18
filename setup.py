@@ -26,7 +26,7 @@ setup(
     license='MIT',
     platforms='any',
     packages=[
-        'itero', 'itero.assemble', 'itero.cli'
+        'itero', 'itero.assemble', 'itero.check', 'itero.cli'
     ],
     data_files=[('config', ['itero/config/itero.conf'])],
     scripts=['bin/itero'],
