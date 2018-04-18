@@ -19,6 +19,7 @@ import argparse
 import itero
 from itero.cli import main_help
 from itero.cli import main_assemble
+from itero.cli import main_check
 
 
 def main():
@@ -43,6 +44,7 @@ def main():
 
     main_help.configure_parser(sub_parsers)
     main_assemble.configure_parser(sub_parsers)
+    main_check.configure_parser(sub_parsers)
     
     try:
         import argcomplete

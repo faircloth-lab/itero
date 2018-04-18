@@ -20,6 +20,13 @@ from itero.pth import get_user_path
 #import pdb
 
 
+def spades_version():
+    cmd = [get_user_path("executables", "spades"), '--version']
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, stderr = proc.communicate()
+    return stdout.split("\n")[0].split(' ')[1]
+
+
 def spades_paired_end_assembly(iteration, sample, sample_dir, fastqs, locus, clean):
     assembly_out_fname = os.path.join(sample_dir, '{}-assembly'.format(locus))
     # go ahead and assemble without error correction, for speed.

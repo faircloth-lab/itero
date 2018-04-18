@@ -20,6 +20,13 @@ from itero.pth import get_user_path
 #import pdb
 
 
+def bwa_version():
+    cmd = [get_user_path("executables", "bwa")]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, stderr = proc.communicate()
+    return stdout.split("\n")[2].split(' ')[1]
+
+
 def bwa_create_index_files(log, reference):
     log.info("Running bwa indexing against {}".format(reference))
     cwd = os.getcwd()

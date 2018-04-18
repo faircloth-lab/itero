@@ -17,6 +17,15 @@ import subprocess
 
 from itero.pth import get_user_path
 
+#import pdb
+
+
+def samtools_version():
+    cmd = [get_user_path("executables", "samtools"), '--version']
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, stderr = proc.communicate()
+    return stdout.split("\n")[0].split(' ')[1]
+
 
 def samtools_index(log, sample, sample_dir, bam, iteration=0):
     log.info("Indexing BAM for {}".format(sample))

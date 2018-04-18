@@ -17,6 +17,15 @@ import subprocess
 
 from itero.pth import get_user_path
 
+#import pdb
+
+
+def bedtools_version():
+    cmd = [get_user_path("executables", "bedtools"), '--version']
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, stderr = proc.communicate()
+    return stdout.split("\n")[0].split(' ')[1]
+
 
 def bedtools_to_fastq(sample, sample_dir, bam_paired, bam_singleton, locus, clean):
     fastq_out_fname_r1 = os.path.join(sample_dir, '{}.read1.fastq'.format(locus))
