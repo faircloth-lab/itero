@@ -98,7 +98,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
             log.warn("Dropped locus {} because of an unexpected error ('{}')".format(locus, e.message))
     if len(assemblies) == 0:
         log.critical("Zero valid contigs were assembled.  Quitting.")
-        sys.exit()
+        sys.exit(1)
     with open(all_fasta_out_fname, 'w') as outfile:
         for assembly in assemblies:
             try:
