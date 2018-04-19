@@ -42,6 +42,7 @@ Guide
 
    purpose
    installation
+   running
 
 Project info
 ============

@@ -9,7 +9,7 @@ Installation
 itero_ uses a number of Python_ tools that allow it to assemble raw reads into contigs.  itero_ also wraps a number of third-party programs.  These include:
 
 Python Modules
---------------
+===============
 
 * numpy_
 * biopython_
@@ -18,7 +18,7 @@ Python Modules
 * six_
 
 3rd-party programs
-------------------
+===================
 
 * bedtools_
 * bwa_
@@ -47,8 +47,8 @@ benefits, including environment separation similar to virtualenv_.
 In short, using conda_ gets us as close to a "one-click" install that we will probably
 ever get.
 
-Install Process
-===============
+Install Process (using conda/bioconda)
+======================================
 
 .. attention:: We do not support itero_ on Windows.
 
@@ -108,7 +108,6 @@ that has completed, run one of the following::
 .. note:: Once you have installed Miniconda, we will refer to it as **anaconda**
    throughout the remainder of this documentation.
 
-
 Checking your `$PATH`
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -166,8 +165,9 @@ You can check to make sure all of the binaries are installed correctly by runnin
 
     itero check binaries
 
-Install Process (Alternative)
-=============================
+
+Install Process (Alternative / HPC)
+===================================
 
 On some systems (particularly HPC systems), conda_ can cause problems.  You can install the itero_ package the "old" way by downloading the package tarball (https://github.com/faircloth-lab/itero/releases) and running::
 
