@@ -28,8 +28,8 @@ def main():
         sys.argv.append("-h")
     # setup main program args
     p = argparse.ArgumentParser(
-        description="itero is a software package for iterative, guided assembly of "
-                    "target enrichment data."
+        description="itero is a software package for iterative, guided "
+                    "assembly of target enrichment data."
     )
     p.add_argument(
         "-V", "--version",
@@ -45,7 +45,7 @@ def main():
     main_help.configure_parser(sub_parsers)
     main_assemble.configure_parser(sub_parsers)
     main_check.configure_parser(sub_parsers)
-    
+
     try:
         import argcomplete
         argcomplete.autocomplete(p)
