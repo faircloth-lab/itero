@@ -26,7 +26,7 @@ Python Modules
 * samtools_
 * spades_
 
-To ensure that these dependencies are easy to install, we have created a conda_ package for itero_ that is available as part of bioconda_.  This is the easiest way to get itero up and running on your system.  itero_ can also be run outside of conda_, and we include some installation suggestions for these types of systems, below.  However, because many HPC systems are configured different, we cannot provide extended support for itero_ on HPC platforms.
+To ensure that these dependencies are easy to install, we have created a conda_ package for itero_ that is available as part of bioconda_.  This is the easiest way to get itero up and running on your system.  itero_ can also be run outside of conda_, and we include some installation suggestions for these types of systems, below.  However, because many HPC systems are configured differently, we cannot provide extensive support for itero_ on HPC platforms.
 
 .. note:: We build and test the binaries available through conda_ using
     64-bit operating systems that include:
@@ -37,7 +37,7 @@ To ensure that these dependencies are easy to install, we have created a conda_ 
 Why conda?
 ==========
 
-It may seem odd to impose a particular disitribution on users, and we largely
+It may seem odd to impose a particular distribution on users, and we largely
 agree.  However, conda_ makes it very easy for us to distribute both Python_ and
 non-Python packages, setup identical environments
 across very heterogenous platforms (linux, osx), make sure all the `$PATHs` are
@@ -156,7 +156,7 @@ Once bioconda_ is installed, you should be able to install itero_ by running::
     
     conda install itero
 
-This should install everything that you need to run the program.
+This will install everything that you need to run the program.
 
 Test itero_ install
 -------------------
@@ -169,7 +169,7 @@ You can check to make sure all of the binaries are installed correctly by runnin
 Install Process (Alternative / HPC)
 ===================================
 
-On some systems (particularly HPC systems), conda_ can cause problems.  You can install the itero_ package the "old" way by downloading the package tarball (https://github.com/faircloth-lab/itero/releases) and running::
+On some systems (particularly HPC systems), conda_ can cause problems.  You can itero_ the "old" way by downloading the package tarball (https://github.com/faircloth-lab/itero/releases) and running::
 
     python setup.py install
 
