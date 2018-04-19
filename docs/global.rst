@@ -1,0 +1,31 @@
+.. _itero: https://github.com/faircloth-lab/itero
+.. _phyluce: https://github.com/faircloth-lab/phyluce
+.. _illumiprocessor: https://github.com/faircloth-lab/illumiprocessor/
+.. _conda: http://docs.continuum.io/conda/
+.. _multiprocessing: http://docs.python.org/2/library/multiprocessing.html
+.. _Python: http://www.python.org
+.. _anaconda: http://docs.continuum.io/anaconda/install.html
+.. _miniconda: http://repo.continuum.io/miniconda/
+.. _CC-BY: http://creativecommons.org/licenses/by/4.0/
+.. _virtualenv: http://www.virtualenv.org/
+.. _Illumina: http://www.illumina.com/
+.. _samtools: http://www.htslib.org/
+.. _BED: https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+.. _bedtools: http://bedtools.readthedocs.io/en/latest/
+.. _BAM: https://samtools.github.io/hts-specs/SAMv1.pdf
+.. _SAM: https://samtools.github.io/hts-specs/SAMv1.pdf
+.. _trimal: http://trimal.cgenomics.org
+.. _spades: http://bioinf.spbau.ru/spades
+.. _schwimmbad: https://github.com/adrn/schwimmbad
+.. _bioconda: https://bioconda.github.io/
+.. _bwa: http://bio-bwa.sourceforge.net/
+.. _github: https://github.com/faircloth-lab/itero
+
+.. _numpy: http://www.numpy.org
+.. _biopython: http://biopython.org
+.. _mpi4py: http://mpi4py.scipy.org/docs/
+.. _schwimmbad: https://github.com/adrn/schwimmbad
+.. _six: https://pythonhosted.org/six/
+
+.. _bedtools: http://bedtools.readthedocs.io/en/latest/
+.. _gawk: https://www.gnu.org/software/gawk/
