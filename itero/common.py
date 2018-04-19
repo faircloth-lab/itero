@@ -91,7 +91,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
             else:
                 log.warn("Dropped locus {} for having multiple contigs or being short (<100 bp)".format(locus))
         except IOError:
-            log.warn("Dropped locus {} for having no assembled contigs (IOError)".format(locus))
+            log.warn("Dropped locus {} for having no assembled contigs".format(locus))
         except IndexError:
             log.warn("Dropped locus {} for having no assembled contigs (IndexError)".format(locus))
         except Exception as e:
