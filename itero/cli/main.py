@@ -28,7 +28,7 @@ def main():
         sys.argv.append("-h")
     # setup main program args
     p = argparse.ArgumentParser(
-        description="itero is a software package for iterative, guided assembly of"
+        description="itero is a software package for iterative, guided assembly of "
                     "target enrichment data."
     )
     p.add_argument(
