@@ -55,7 +55,7 @@ See [Documentation](http://itero.readthedocs.io/en/latest/installation.html) for
 
 This command should install `itero` and its `python` dependencies, but you are on your own to install the 3rd-party programs that are also needed.  The `conda` installation automates this process.
 
-## Configuration
+### Configuration
 
 If you install `itero` without using `conda`, `itero` needs to know the paths to the 3rd-party binaries listed above.  You can directly specify the paths (or override the defaults), by creating an `~/.itero.conf` file with a format identical to:
 
