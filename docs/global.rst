@@ -20,12 +20,10 @@
 .. _bioconda: https://bioconda.github.io/
 .. _bwa: http://bio-bwa.sourceforge.net/
 .. _github: https://github.com/faircloth-lab/itero
-
 .. _numpy: http://www.numpy.org
 .. _biopython: http://biopython.org
 .. _mpi4py: http://mpi4py.scipy.org/docs/
 .. _schwimmbad: https://github.com/adrn/schwimmbad
 .. _six: https://pythonhosted.org/six/
-
 .. _bedtools: http://bedtools.readthedocs.io/en/latest/
 .. _gawk: https://www.gnu.org/software/gawk/
