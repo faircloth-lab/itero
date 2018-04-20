@@ -1,7 +1,12 @@
 # itero
 A pipeline for iterative, guided contig assembly that integrates spades, bwa, and samtools to produce assembled contigs.  MPI and multiprocessing aware.
 
+## Documentation
+
+Please see [itero.readthedocs.io](http://itero.readthedocs.io/).
+
 ## Requirements
+
 If installed using `conda`, all of the `itero` dependencies should also be installed.  These include:
 
 ### Python
@@ -26,7 +31,25 @@ If installed using `conda`, all of the `itero` dependencies should also be insta
 
 ## Installation
 
-Easiest using `conda` and `bioconda` (**not yet implemented**).  Also installs by cloning/downloading this repository and running:
+Easiest using `conda` and `bioconda`.  See [Documentation](http://itero.readthedocs.io/en/latest/installation.html) for details.  Short version, install `anaconda` or `miniconda`, then:
+
+```bash
+
+# setup bioconda
+conda config --add channels defaults
+conda config --add channels conda-forge
+conda config --add channels bioconda
+
+# install itero
+conda install itero
+
+# check itero
+itero check binaries
+```
+
+## Alternative Installation
+
+See [Documentation](http://itero.readthedocs.io/en/latest/installation.html) for details. Also installs by cloning/downloading this repository and running:
 
 `python setup.py install`
 
