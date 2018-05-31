@@ -67,7 +67,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                 raise IOError("Assembly file does not exist.")
             # check to see if fasta file has any content
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
-            elif not sequence:
+            if not sequence:
                 raise IndexError("Assembly file has no content.")
             elif len(sequence) > 1 and multiple_hits is True:
                 # keep only contigs > 100 bp
