@@ -62,8 +62,14 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
     for locus in locus_names:
         try:
             assembly_fasta_fname = os.path.join(sample_dir_iter, "loci","{}.fasta".format(locus))
+            # check to see if this file exists
+            if not os.path.isfile(assembly_fasta_fname):
+                raise IOError("Assembly file does not exist.")
+            # check to see if fasta file has any content
             sequence = list(SeqIO.parse(assembly_fasta_fname, 'fasta'))
-            if len(sequence) > 1 and multiple_hits is True:
+            elif not sequence:
+                raise IndexError("Assembly file has no content.")
+            elif len(sequence) > 1 and multiple_hits is True:
                 # keep only contigs > 100 bp
                 for v, seq in enumerate(sequence):
                     #pdb.set_trace()
@@ -81,7 +87,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                 log.warn("Locus {} has multiple hits (allowed during initial rounds).  Padded both with Ns and put back into seeds.".format(new_seq.id.split("_")[0]))
                 assemblies.append(new_seq)
                 assemblies_stats.append(len(new_seq.seq.strip("N")))
-            elif (len(sequence) == 1 or multiple_hits is False) and len(sequence[0]) >= 100:
+            elif len(sequence) == 1 and len(sequence[0]) >= 100:
                 seq = sequence[0]
                 seq.id = seq.id.replace("NODE", locus.split("_")[0])
                 seq.description = ""
