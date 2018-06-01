@@ -125,14 +125,19 @@ def main(args, parser, mpi=False):
             os.remove(reduced_bam)
             # if we are not on our last iteration, assembly as usual
             if iteration is not 'final':
+                log.info("Splitting BAM by locus to SAM")
+                header = samtools.get_bam_header(log, sorted_reduced_bam, iteration)
+                sample_dir_iter_locus_temp = samtools.faster_split_bam(log, sorted_reduced_bam, sample_dir_iter, iteration)
                 if args.only_single_locus:
                     locus_names = ['locus-1']
                 else:
                     # get list of loci in sorted bam
                     locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
-                log.info("Splitting BAM and assembling")
+                log.info("Reheadering split SAMs")
+                samtools.reheader_split_sams(log, sample_dir_iter, sample_dir_iter_locus_temp, header, locus_names)
+                log.info("Assembling")
                 # MPI-specific bits
-                tasks = [(iteration, sample, sample_dir_iter, sorted_reduced_bam, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
+                tasks = [(iteration, sample, sample_dir_iter, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
                 if mpi:
                     results = mpi_pool.map(common.initial_assembly, tasks)
                 # multiprocessing specific bits

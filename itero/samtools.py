@@ -13,11 +13,12 @@ Created on 14 April 2018 16:13 CDT (-0500)
 """
 
 import os
+import time
 import subprocess
 
 from itero.pth import get_user_path
 
-#import pdb
+import pdb
 
 
 def samtools_version():
@@ -79,6 +80,29 @@ def samtools_sort(log, sample, sample_dir, bam, iteration=0):
     return bam_out_fname
 
 
+def get_bam_header(log, bam, iteration):
+    cmd1 = [
+    get_user_path("executables", "samtools"),
+    "view",
+    "-H",
+    bam
+    ]
+    proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
+    stdout = proc1.communicate()
+    log.info("Got BAM header for iteration {}".format(iteration))
+    return stdout[0]
+
+
+def get_locus_names_from_bam_header(log, header, iteration):
+    hs = header[0].split("\n")
+    locus_names = []
+    for item in hs:
+        if item.startswith("@SQ"):
+            locus_names.append(item.split("\t")[1].lstrip("SN:"))
+    locus_names.sort()
+    return locus_names
+
+
 def samtools_get_locus_names_from_bam(log, bam, iteration):
     #pdb.set_trace()
     cmd1 = [
@@ -103,24 +127,10 @@ def samtools_get_locus_names_from_bam(log, bam, iteration):
     return locus_names
 
 
-def samtools_split_bam(sample, sample_dir, bam, locus, clean, only_single_locus):
-    bam_out_fname = os.path.join(sample_dir, '{}.bam'.format(locus))
-    if only_single_locus:
-        bam_out_fname = bam
-    else:
-        cmd0 = [
-            get_user_path("executables", "samtools"),
-            "view",
-            "-b",
-            bam,
-            locus,
-            "-o",
-            bam_out_fname
-        ]
-        proc0 = subprocess.Popen(cmd0)
-        stdout = proc0.communicate()
+def samtools_split_sam(sample, sample_dir_iter_locus, locus, clean, only_single_locus):
+    sam_out_fname = os.path.join(sample_dir_iter_locus, '{}.sam'.format(locus))
     # split the reduced files into properly paired and singleton reads
-    bam_out_fname_paired = os.path.join(sample_dir, '{}.paired.bam'.format(locus))
+    bam_out_fname_paired = os.path.join(sample_dir_iter_locus, '{}.paired.bam'.format(locus))
     # -f 2 -F 2048 gets properly paired, non-supplementary alignments
     cmd2 = [
         get_user_path("executables", "samtools"),
@@ -130,14 +140,14 @@ def samtools_split_bam(sample, sample_dir, bam, locus, clean, only_single_locus)
         "-F",
         "2048",
         "-b",
-        bam_out_fname,
+        sam_out_fname,
         "-o",
         bam_out_fname_paired
     ]
     proc2 = subprocess.Popen(cmd2)
     stdout = proc2.communicate()
     # sort the paired bam
-    bam_out_fname_paired_sorted = os.path.join(sample_dir, '{}.paired.sorted.bam'.format(locus))
+    bam_out_fname_paired_sorted = os.path.join(sample_dir_iter_locus, '{}.paired.sorted.bam'.format(locus))
     cmd1 = [
         get_user_path("executables", "samtools"),
         "sort",
@@ -148,20 +158,71 @@ def samtools_split_bam(sample, sample_dir, bam, locus, clean, only_single_locus)
     ]
     proc1 = subprocess.Popen(cmd1)
     stdout = proc1.communicate()
-    bam_out_fname_singleton = os.path.join(sample_dir, '{}.singleton.bam'.format(locus))
+    bam_out_fname_singleton = os.path.join(sample_dir_iter_locus, '{}.singleton.bam'.format(locus))
     cmd3 = [
         get_user_path("executables", "samtools"),
         "view",
         "-f",
         "8",
         "-b",
-        bam_out_fname,
+        sam_out_fname,
         "-o",
         bam_out_fname_singleton
     ]
     proc3 = subprocess.Popen(cmd3)
     stdout = proc3.communicate()
     if clean:
-        os.remove(bam_out_fname)
+        os.remove(sam_out_fname)
         os.remove(bam_out_fname_paired)
     return bam_out_fname_paired_sorted, bam_out_fname_singleton
+
+
+def faster_split_bam(log, sorted_reduced_bam, sample_dir_iter, iteration):
+    start_time = time.time()
+    sample_dir_iter_locus_temp = os.path.join(sample_dir_iter, "loci", "temp")
+    # make a temp dir in locus folder in which to store locus-specific SAM data
+    os.makedirs(sample_dir_iter_locus_temp)
+    os.chdir(sample_dir_iter_locus_temp)
+    cmd1 = [
+        get_user_path("executables", "samtools"),
+        "view",
+        sorted_reduced_bam  
+    ]
+    cmd2 = [
+        get_user_path("executables", "grep"),
+        "-v",
+        "^@"
+    ]
+    cmd3 = [
+        get_user_path("executables", "gawk"),
+        "-F\t",
+        '{print > $3}'
+    ]
+    proc1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE)
+    proc2 = subprocess.Popen(cmd2, stdin=proc1.stdout, stdout=subprocess.PIPE)
+    proc3 = subprocess.Popen(cmd3, stdin=proc2.stdout, stdout=subprocess.PIPE)
+    proc1.stdout.close()
+    proc2.stdout.close()
+    stdout = proc3.communicate()
+    if proc3.returncode is not 0:
+        raise IOError("Splitting BAM file has failed")
+    else:
+        os.chdir(sample_dir_iter)
+    end_time = time.time()
+    time_delta_sec = round(end_time - start_time, 3)
+    log.info("\tSplit SAMs took {} seconds".format(time_delta_sec))
+    return sample_dir_iter_locus_temp
+
+
+def reheader_split_sams(log, sample_dir_iter, sample_dir_iter_locus_temp, header, locus_names):
+    start_time = time.time()
+    for locus in locus_names:
+        sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
+        os.makedirs(sample_dir_iter_locus)
+        with open(os.path.join(sample_dir_iter_locus, "{}.sam".format(locus)), 'w') as outfile:
+            with open(os.path.join(sample_dir_iter_locus_temp, locus), 'r') as temp_sam:
+                outfile.write(header)
+                outfile.write(temp_sam.read())
+    end_time = time.time()
+    time_delta_sec = round(end_time - start_time, 3)
+    log.info("\tReheadering SAMs took {} seconds".format(time_delta_sec))

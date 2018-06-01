@@ -152,10 +152,9 @@ def get_previous_sample_dir_iter(log, sample_dir_iter, prev_iter):
 
 
 def initial_assembly(work):
-    iteration, sample, sample_dir_iter, sorted_reduced_bam, locus, clean, only_single_locus = work
+    iteration, sample, sample_dir_iter, locus, clean, only_single_locus = work
     sample_dir_iter_locus = os.path.join(sample_dir_iter, "loci", locus)
-    os.makedirs(sample_dir_iter_locus)
-    bam_paired, bam_singleton = samtools.samtools_split_bam(sample, sample_dir_iter_locus, sorted_reduced_bam, locus, clean, only_single_locus)
+    bam_paired, bam_singleton = samtools.samtools_split_sam(sample, sample_dir_iter_locus, locus, clean, only_single_locus)
     fastqs = bedtools.bedtools_to_fastq(sample, sample_dir_iter_locus, bam_paired, bam_singleton, locus, clean)
     spades_assembly_dir = spades.spades_paired_end_assembly(iteration, sample, sample_dir_iter_locus, fastqs, locus, clean)
     spades_assembly_fasta = os.path.join(spades_assembly_dir, "contigs.fasta")
