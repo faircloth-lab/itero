@@ -14,7 +14,9 @@ Created on 14 April 2018 16:12 CDT (-0500)
 
 import os
 import sys
+import time
 import logging
+
 
 import pdb
 
@@ -24,10 +26,11 @@ def setup_logging(args):
     my_name = os.path.basename(os.path.splitext(main.__file__)[0])
     log = logging.getLogger(my_name)
     console = logging.StreamHandler(sys.stdout)
+    curr_time = int(time.time())
     if args.log_path is not None:
-        logfile = logging.FileHandler(os.path.join(args.log_path, "{}.log".format(my_name)))
+        logfile = logging.FileHandler(os.path.join(args.log_path, "{}.log".format(my_name, curr_time)))
     else:
-        logfile = logging.FileHandler("{}.log".format(my_name))
+        logfile = logging.FileHandler("{}-{}.log".format(my_name, curr_time))
     if args.verbosity == "INFO":
         log.setLevel(logging.INFO)
         console.setLevel(logging.INFO)
