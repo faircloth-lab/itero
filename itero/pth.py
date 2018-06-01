@@ -36,3 +36,11 @@ def get_user_path(program, binary, package_only=False):
     else:
         expand_pth = os.path.abspath(os.path.expanduser(os.path.expandvars(pth)))
     return expand_pth
+
+
+def get_user_param(section, param):
+    config = ConfigParser.ConfigParser()
+    # make case sensitive
+    config.optionxform = str
+    config.read([os.path.join(sys.prefix, 'config/itero.conf'), os.path.expanduser('~/.itero.conf')])
+    return config.get(section, param)

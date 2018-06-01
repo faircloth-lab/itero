@@ -15,7 +15,7 @@ Created on 14 April 2018 16:13 CDT (-0500)
 import os
 import subprocess
 
-from itero.pth import get_user_path
+from itero.pth import get_user_path, get_user_param
 
 #import pdb
 
@@ -42,9 +42,11 @@ def spades_paired_end_assembly(iteration, sample, sample_dir, fastqs, locus, cle
         "-s",
         fastqs['s'],
         "-k",
-        "33",
+        get_user_param('spades', 'kmer'),
         "--cov-cutoff",
-        "5",
+        get_user_param('spades', 'coverage_cutoff'),
+        "--memory",
+        get_user_param('spades', 'memory'),
         "-o",
         assembly_out_fname
     ]
