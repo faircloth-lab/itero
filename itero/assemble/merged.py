@@ -118,21 +118,16 @@ def main(args, parser, mpi=False):
             reduced_bam = samtools.samtools_reduce(log, sample, sample_dir_iter, bam, iteration=iteration)
             # remove the un-reduced BAM
             os.remove(bam)
-            # sort and index bam
-            sorted_reduced_bam = samtools.samtools_sort(log, sample, sample_dir_iter, reduced_bam, iteration=iteration)
-            samtools.samtools_index(log, sample, sample_dir_iter, sorted_reduced_bam, iteration=iteration)
-            # remove the un-sorted BAM
-            os.remove(reduced_bam)
             # if we are not on our last iteration, assembly as usual
             if iteration is not 'final':
                 log.info("Splitting BAM by locus to SAM")
-                header = samtools.get_bam_header(log, sorted_reduced_bam, iteration)
-                sample_dir_iter_locus_temp = samtools.faster_split_bam(log, sorted_reduced_bam, sample_dir_iter, iteration)
+                header = samtools.get_bam_header(log, reduced_bam, iteration)
+                sample_dir_iter_locus_temp = samtools.faster_split_bam(log, reduced_bam, sample_dir_iter, iteration)
                 if args.only_single_locus:
                     locus_names = ['locus-1']
                 else:
                     # get list of loci in sorted bam
-                    locus_names = samtools.samtools_get_locus_names_from_bam(log, sorted_reduced_bam, iteration)
+                    locus_names = samtools.samtools_get_locus_names_from_bam(log, reduced_bam, iteration)
                 log.info("Reheadering split SAMs")
                 samtools.reheader_split_sams(log, sample_dir_iter, sample_dir_iter_locus_temp, header, locus_names)
                 log.info("Removing temporary SAM files")
