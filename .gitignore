@@ -11,6 +11,7 @@ temp
 itero/hostfile
 local
 mpi
+probe-check
 
 # Distribution / packaging
 .Python
