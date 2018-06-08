@@ -17,6 +17,7 @@ import os
 import sys
 import time
 import shutil
+import traceback
 import ConfigParser
 
 from itero import bwa
@@ -76,7 +77,14 @@ def main(args, parser, mpi=False):
         sample_dir = os.path.join(args.output, sample)
         os.makedirs(sample_dir)
         # determine how many files we're dealing with
-        fastq = raw_reads.get_input_files(dir, args.subfolder, log)
+        try:
+            fastq = raw_reads.get_input_files(dir, args.subfolder, log)
+        except IOError, err:
+            log.critical("THERE WAS A PROBLEM WITH THE FASTQ FILES.  QUITTING.")
+            if mpi:
+                mpi_pool.close()
+            traceback.print_exc()
+            sys.exit(1)
         iterations = list(xrange(args.iterations)) + ['final']
         next_to_last_iter = iterations[-2]
         for iteration in iterations:
