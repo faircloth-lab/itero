@@ -47,6 +47,15 @@ def get_input_data(log, args, conf):
     return updated_individuals
 
 
+def get_seed_file(conf, pth):
+    # get the seed file info
+    seeds = conf.items("reference")[0][0]
+    # deal with relative paths in config
+    if seeds.startswith(".."):
+        seeds = os.path.join(os.path.dirname(pth), seeds)
+    return seeds
+
+
 def get_seed_names(seeds):
     with open(seeds, "ru") as infile:
         return [i.lstrip(">").rstrip() for i in infile if i.startswith(">")]
@@ -83,8 +92,7 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                             #pdb.set_trace()
                             new_seq.seq += Seq("{}".format(200*'N')) + seq.seq
                     else:
-                        pass
-                log.warn("Locus {} has multiple hits (allowed during initial rounds).  Padded both with Ns and put back into seeds.".format(new_seq.id.split("_")[0]))
+                        pass                
                 assemblies.append(new_seq)
                 assemblies_stats.append(len(new_seq.seq.strip("N")))
             elif len(sequence) == 1 and len(sequence[0]) >= 100:
@@ -94,8 +102,10 @@ def get_fasta(log, sample, sample_dir_iter, locus_names, multiple_hits=False, it
                 seq.name = ""
                 assemblies.append(seq)
                 assemblies_stats.append(len(seq))
-            else:
-                log.warn("Dropped locus {} for having multiple contigs or being short (<100 bp)".format(locus))
+            elif len(sequence) > 1 and multiple_hits is False:
+                log.warn("Dropped locus {} for having multiple contigs at later iterations".format(locus))
+            elif len(sequence) == 1 and len(sequence[0]) < 100:
+                log.warn("Dropped locus {} for being short (<100 bp)".format(locus))
         except IOError:
             log.warn("Dropped locus {} for having no assembled contigs".format(locus))
         except IndexError:

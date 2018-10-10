@@ -59,10 +59,7 @@ def main(args, parser, mpi=False):
     conf.optionxform = str
     conf.read(args.config)
     # get the seed file info
-    seeds = conf.items("reference")[0][0]
-    # deal with relative paths in config
-    if seeds.startswith(".."):
-        seeds = os.path.join(os.path.dirname(args.config), seeds)
+    seeds = common.get_seed_file(conf, args.config)
     # get name of all loci in seeds file - only need to do this once
     seed_names = common.get_seed_names(seeds)
     # get the input data
@@ -160,8 +157,10 @@ def main(args, parser, mpi=False):
                 # after assembling all loci, report on deltas of the assembly length
                 if iteration is not 0:
                     assembly_delta = common.get_deltas(log, sample, sample_dir_iter, iterations, iteration=iteration)
-            elif iteration is 'final':
+            elif iteration is 'final':                
                 log.info("Final assemblies and a BAM file with alignments to those assemblies are in {}/iter-{}".format(os.path.join(args.output, individual[0]), iteration))
+                # reset the seeds file to the starting value
+                seeds = common.get_seed_file(conf, args.config)
     if mpi:
         # close the pool of MPI processes
         mpi_pool.close()
