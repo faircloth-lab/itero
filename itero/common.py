@@ -47,6 +47,15 @@ def get_input_data(log, args, conf):
     return updated_individuals
 
 
+def get_seed_file(conf, pth):
+    # get the seed file info
+    seeds = conf.items("reference")[0][0]
+    # deal with relative paths in config
+    if seeds.startswith(".."):
+        seeds = os.path.join(os.path.dirname(pth), seeds)
+    return seeds
+
+
 def get_seed_names(seeds):
     with open(seeds, "ru") as infile:
         return [i.lstrip(">").rstrip() for i in infile if i.startswith(">")]
