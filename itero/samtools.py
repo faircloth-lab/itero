@@ -127,8 +127,12 @@ def samtools_get_locus_names_from_bam(log, bam, iteration):
     return locus_names
 
 
-def samtools_split_sam(sample, sample_dir_iter_locus, locus, clean, only_single_locus):
-    sam_out_fname = os.path.join(sample_dir_iter_locus, '{}.sam'.format(locus))
+def samtools_split_sam(sample, iteration, sample_dir_iter, sample_dir_iter_locus, locus, clean, only_single_locus):
+    #pdb.set_trace()
+    sam_out_fname = os.path.join(sample_dir_iter, "loci", "iter-{}.reduce.{}.bam".format(iteration, locus))
+    #sam_out_fname = os.path.join(sample_dir_iter_locus, '{}.sam'.format(locus))
+    # make the output dir for the locus specific files
+    os.makedirs(sample_dir_iter_locus)
     # split the reduced files into properly paired and singleton reads
     bam_out_fname_paired = os.path.join(sample_dir_iter_locus, '{}.paired.bam'.format(locus))
     # -f 2 -F 2048 gets properly paired, non-supplementary alignments

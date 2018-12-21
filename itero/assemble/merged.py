@@ -21,6 +21,7 @@ import ConfigParser
 
 from itero import bwa
 from itero import samtools
+from itero import bamtools
 from itero import common
 from itero import raw_reads
 
@@ -118,17 +119,19 @@ def main(args, parser, mpi=False):
             # if we are not on our last iteration, assembly as usual
             if iteration is not 'final':
                 log.info("Splitting BAM by locus to SAM")
-                header = samtools.get_bam_header(log, reduced_bam, iteration)
-                sample_dir_iter_locus_temp = samtools.faster_split_bam(log, reduced_bam, sample_dir_iter, iteration)
+                #header = samtools.get_bam_header(log, reduced_bam, iteration)
+                #sample_dir_iter_locus_temp = samtools.faster_split_bam(log, reduced_bam, sample_dir_iter, iteration)
+                bamtools.split_bam(log, reduced_bam, sample_dir_iter, iteration)
+                #pdb.set_trace()
                 if args.only_single_locus:
                     locus_names = ['locus-1']
                 else:
                     # get list of loci in sorted bam
                     locus_names = samtools.samtools_get_locus_names_from_bam(log, reduced_bam, iteration)
-                log.info("Reheadering split SAMs")
-                samtools.reheader_split_sams(log, sample_dir_iter, sample_dir_iter_locus_temp, header, locus_names)
-                log.info("Removing temporary SAM files")
-                shutil.rmtree(sample_dir_iter_locus_temp)
+                #log.info("Reheadering split SAMs")
+                #samtools.reheader_split_sams(log, sample_dir_iter, sample_dir_iter_locus_temp, header, locus_names)
+                #log.info("Removing temporary SAM files")
+                #shutil.rmtree(sample_dir_iter_locus_temp)
                 log.info("Assembling")
                 # MPI-specific bits
                 tasks = [(iteration, sample, sample_dir_iter, locus_name, args.clean, args.only_single_locus) for locus_name in locus_names]
